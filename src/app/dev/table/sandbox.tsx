@@ -5,7 +5,9 @@ import { TableScreen } from "@/app/games/[id]/table/table-screen";
 import { startRoundFromDeck } from "@/engine";
 import type { Seat } from "@/engine";
 import { buildDeck } from "@/engine/testing";
-import { applyTableAction, buildView, startTable } from "@/server/table";
+import { applyTimed, applyTimeout, startClock } from "@/server/clock";
+import type { ClockContext } from "@/server/clock";
+import { buildView, startTable } from "@/server/table";
 import type {
   DiceResult,
   PlayAction,
@@ -48,8 +50,18 @@ function botAction(actions: readonly PlayAction[]): PlayAction {
   return discards.length > 0 ? pick(discards) : pick(actions);
 }
 
-function step(table: TableState, action: PlayAction): TableState {
-  return applyTableAction(table, action, randomSeed).table;
+const context = (now = Date.now()): ClockContext => ({
+  now,
+  nextSeed: randomSeed,
+  pick: (count) => Math.floor(Math.random() * count),
+});
+
+/** 時計つきの対局を始める。 */
+const freshTable = (seed: string): TableState =>
+  startClock(startTable({ seed }).table, Date.now());
+
+function step(table: TableState, action: TableAction): TableState {
+  return applyTimed(table, action, context()).table;
 }
 
 /** 条件を満たすまで、3人とも自動で進める。 */
@@ -85,13 +97,16 @@ function tenpaiTable(nextDraw: string, firstDraw = "7z"): TableState {
     ura: "8p",
   });
   const table = startTable({ seed }).table;
-  return {
-    ...table,
-    game: {
-      ...table.game,
-      round: startRoundFromDeck(deck, { dealer: ME, seed }).state,
+  return startClock(
+    {
+      ...table,
+      game: {
+        ...table.game,
+        round: startRoundFromDeck(deck, { dealer: ME, seed }).state,
+      },
     },
-  };
+    Date.now(),
+  );
 }
 
 /** 作り物のサイコロチャンス。エンジンではめったに起きないので、画面データを上書きして出す。 */
@@ -142,7 +157,7 @@ function withFake(view: PlayerView, fake: Fake | null): PlayerView {
 
 export function Sandbox() {
   const [{ table, version }, setState] = useState(() => ({
-    table: startTable({ seed: FIRST_SEED }).table,
+    table: freshTable(FIRST_SEED),
     version: 1,
   }));
   const [fake, setFake] = useState<Fake | null>(null);
@@ -168,7 +183,6 @@ export function Sandbox() {
         setState((current) => ({ ...current, version: current.version + 1 }));
         return;
       }
-      if (action.type === "resume") return;
       if (action.type === "confirm") setFake(null);
       update((current) => step(current, action));
     },
@@ -190,6 +204,17 @@ export function Sandbox() {
     );
     return () => clearTimeout(timer);
   }, [table, update]);
+
+  // 期限を過ぎたら、サーバーの代わりに時間切れを処理する
+  const deadline = table.clock?.deadline ?? null;
+  useEffect(() => {
+    if (deadline === null) return;
+    const timer = setTimeout(
+      () => update((current) => applyTimeout(current, context()).table),
+      Math.max(0, deadline - Date.now()) + 100,
+    );
+    return () => clearTimeout(timer);
+  }, [deadline, version, update]);
 
   const debug = (label: string, onClick: () => void) => (
     <button
@@ -218,6 +243,25 @@ export function Sandbox() {
         serverTime={Date.now}
       />
       <div className="fixed right-0 bottom-0 z-50 flex gap-1 text-[10px] opacity-60 hover:opacity-100">
+        {debug("時間切れ", () =>
+          update(
+            (t) =>
+              applyTimeout(t, context(t.clock?.deadline ?? Date.now())).table,
+          ),
+        )}
+        {debug("下家を自動", () =>
+          update((t) =>
+            t.clock
+              ? {
+                  ...t,
+                  clock: {
+                    ...t.clock,
+                    auto: [t.clock.auto[0], true, t.clock.auto[2]],
+                  },
+                }
+              : t,
+          ),
+        )}
         {debug("20手進める", () =>
           update((t) => {
             let n = 0;
@@ -262,7 +306,7 @@ export function Sandbox() {
           setFake(null);
           setScene((n) => n + 1);
           setState((current) => ({
-            table: startTable({ seed: randomSeed() }).table,
+            table: freshTable(randomSeed()),
             version: current.version + 1,
           }));
         })}
