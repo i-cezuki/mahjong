@@ -91,3 +91,17 @@ export const YAKU_LABELS: Record<YakuName, string> = {
   chinitsuChiitoitsu: "清一色七対子",
   riichiOnly: "リーチのみ",
 };
+
+/** [翻の下限, 呼び名]。区切りは点数表（engine/score.ts）と同じ。 */
+const LIMITS = [
+  [13, "数え役満"],
+  [11, "三倍満"],
+  [8, "倍満"],
+  [6, "跳満"],
+  [4, "満貫"],
+] as const;
+
+/** 満貫以上の呼び名。満貫に届かなければ null。 */
+export function limitLabel(han: number): string | null {
+  return LIMITS.find(([minHan]) => han >= minHan)?.[1] ?? null;
+}

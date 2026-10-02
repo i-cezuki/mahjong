@@ -1,4 +1,4 @@
-import { YAKU_LABELS } from "@/components/labels";
+import { limitLabel, YAKU_LABELS } from "@/components/labels";
 import { Tile } from "@/components/tile";
 import type { Seat, WinRecord } from "@/engine";
 import type { PlayerView, TableAction } from "@/server/table";
@@ -69,6 +69,7 @@ function Win({
         ([key, label]) => `${label} ${result.dora[key]}`,
       )
     : [];
+  const limit = result ? limitLabel(result.han) : null;
   return (
     <section className="flex flex-col gap-1.5">
       <h3 className="flex items-baseline gap-3">
@@ -80,12 +81,19 @@ function Win({
           <span className="text-sm opacity-70">（{names[win.from]}から）</span>
         )}
         {result && (
-          <span className="ml-auto text-lg font-bold">
-            {result.yakuman > 0
-              ? result.yakuman > 1
-                ? `役満×${result.yakuman}`
-                : "役満"
-              : `${result.han}翻`}
+          <span className="ml-auto flex items-baseline gap-2 text-lg font-bold">
+            {result.yakuman > 0 ? (
+              result.yakuman > 1 ? (
+                `役満×${result.yakuman}`
+              ) : (
+                "役満"
+              )
+            ) : (
+              <>
+                <span>合計 {result.han}翻</span>
+                {limit && <span className="text-amber-200">{limit}</span>}
+              </>
+            )}
           </span>
         )}
       </h3>
