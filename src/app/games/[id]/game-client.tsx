@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { PlayerView, TableAction } from "@/server/table";
+import { optimisticView } from "./logic/optimistic";
 import { TableScreen } from "./table/table-screen";
 import { useServerTime, useTick } from "./use-clock";
 import { useGameView } from "./use-game-view";
@@ -74,6 +75,12 @@ export function GameClient({
   const [error, setError] = useState<string | null>(null);
   const sending = useRef(false);
   const [busy, setBusy] = useState(false);
+  // 応答を待たずに先に出している画面データ。元にした版番号から画面データが進んだら捨てる
+  const [guess, setGuess] = useState<{
+    base: number;
+    view: PlayerView;
+  } | null>(null);
+  const ahead = guess?.base === version ? guess.view : null;
 
   // 画面を開いた時点で届いていたサイコロの結果は、再生せずに結果だけ出す
   const [opened] = useState(() => ({
@@ -88,6 +95,9 @@ export function GameClient({
       sending.current = true;
       setBusy(true);
       setError(null);
+      // 打牌などは、応答を待たずに画面へ出す。拒否されたら下で元に戻す
+      const next = optimisticView(view, action);
+      setGuess(next && { base: version, view: next });
       try {
         const response = await fetch(`/api/games/${gameId}/actions`, {
           method: "POST",
@@ -98,24 +108,28 @@ export function GameClient({
           accept((await response.json()) as Snapshot);
         } else if (response.status === 409) {
           // 見ていた状態が古かった。取り直せば続けられる
+          setGuess(null);
           await recover(response);
         } else {
+          setGuess(null);
           setError("その操作はできません");
           await refetch();
         }
       } catch {
+        setGuess(null);
         setError("通信できませんでした。もう一度お試しください");
       }
       sending.current = false;
       setBusy(false);
     },
-    [gameId, version, accept, refetch, recover],
+    [gameId, version, view, accept, refetch, recover],
   );
 
   return (
     <TableScreen
-      view={view}
-      version={version}
+      view={ahead ?? view}
+      // 先に出している間は別の版として扱い、牌の選択や発声の検出をやり直させる
+      version={ahead ? version + 0.5 : version}
       names={names}
       roomCode={roomCode}
       busy={busy}
