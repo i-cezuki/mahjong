@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import {
   isSameOrigin,
   jsonError,
@@ -7,6 +8,7 @@ import {
 import { submitTick } from "@/server/games";
 import type { SubmitError } from "@/server/games";
 import { isUuid } from "@/server/room-rules";
+import { recordGameStats } from "@/server/stats";
 
 const STATUS: Record<SubmitError, number> = {
   notFound: 404,
@@ -38,5 +40,9 @@ export async function POST(
     version: body?.version,
   });
   if (!result.ok) return jsonError(result.error, STATUS[result.error]);
+  // 終局したら、応答を返したあとに集計値を計算する。失敗しても定期実行が拾う
+  if (result.view.phase === "ended") {
+    after(() => recordGameStats(id).catch(() => undefined));
+  }
   return Response.json({ version: result.version, view: result.view });
 }

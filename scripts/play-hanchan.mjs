@@ -3,6 +3,7 @@
 //
 //   npx supabase start && npm run dev
 //   node --env-file=.env.local scripts/play-hanchan.mjs [アプリのURL]
+//   --keep を付けると、終わったあとにユーザーと対局を消さない（画面の確認用）
 //
 // 合法手の判定はしない。画面データに入っている「可能な操作」からランダムに選ぶだけ。
 
@@ -10,7 +11,10 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { tileOf } from "../src/engine/tiles.ts";
 
-const APP_URL = process.argv[2] ?? "http://localhost:3000";
+const ARGS = process.argv.slice(2);
+const KEEP = ARGS.includes("--keep");
+const APP_URL =
+  ARGS.find((arg) => !arg.startsWith("--")) ?? "http://localhost:3000";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
@@ -525,6 +529,33 @@ async function main() {
     .select("seq")
     .eq("game_id", gameId);
   check("部外者は牌譜を読めない", (outsiderEvents ?? []).length === 0);
+
+  // 集計は応答のあとに計算されるので、少し待つ
+  let statRows = [];
+  for (let i = 0; i < 50 && statRows.length < 3; i++) {
+    await sleep(200);
+    const { data } = await outsider.supabase
+      .from("game_stats")
+      .select("player_id, version, stats")
+      .eq("game_id", gameId);
+    statRows = data ?? [];
+  }
+  check(
+    "終局すると3人分の集計値が保存される",
+    statRows.length === 3,
+    statRows.length,
+  );
+  check(
+    "集計値の局数は3人とも同じで、1以上",
+    statRows.length === 3 &&
+      statRows[0].stats.rounds >= 1 &&
+      statRows.every((row) => row.stats.rounds === statRows[0].stats.rounds),
+  );
+  const { data: outsiderResults } = await outsider.supabase
+    .from("game_results")
+    .select("rank")
+    .eq("game_id", gameId);
+  check("参加していない人も結果を読める", (outsiderResults ?? []).length === 3);
   const finishedAction = await api(a, "POST", `/api/games/${gameId}/actions`, {
     version: a.version,
     action: { type: "pass" },
@@ -568,12 +599,18 @@ async function main() {
   );
   check("Realtimeの通知がすべて届いた", stats.late === 0, stats.late);
 
-  // 作ったルーム（対局と結果も一緒に消える）とユーザーを片付ける
-  for (const player of all) {
-    await player.supabase.removeAllChannels();
-    await admin.from("rooms").delete().eq("created_by", player.id);
+  for (const player of all) await player.supabase.removeAllChannels();
+  if (KEEP) {
+    console.log(
+      "--keep: ユーザーと対局を残しました（次の実行の最初に消えます）",
+    );
+  } else {
+    // 作ったルーム（対局と結果も一緒に消える）とユーザーを片付ける
+    for (const player of all) {
+      await admin.from("rooms").delete().eq("created_by", player.id);
+    }
+    for (const player of all) await admin.auth.admin.deleteUser(player.id);
   }
-  for (const player of all) await admin.auth.admin.deleteUser(player.id);
 
   console.log(failures === 0 ? "すべて成功" : `失敗: ${failures} 件`);
   process.exit(failures === 0 ? 0 : 1);
