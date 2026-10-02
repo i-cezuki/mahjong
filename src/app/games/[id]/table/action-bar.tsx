@@ -127,12 +127,10 @@ export function ActionBar({
         button("ポン", styles.plain, () =>
           menu.pons.length === 1 ? send(menu.pons[0]!) : onMode("pon"),
         )}
-      {menu.riichiTiles.length > 0 && (
-        <>
-          {button("リーチ", styles.riichi, () => onMode("riichi"))}
-          {button("2倍リーチ", styles.riichi, () => onMode("doubleRiichi"))}
-        </>
-      )}
+      {menu.riichiTiles.length > 0 &&
+        button("リーチ", styles.riichi, () => onMode("riichi"))}
+      {menu.doubleRiichiTiles.length > 0 &&
+        button("2倍リーチ", styles.riichi, () => onMode("doubleRiichi"))}
       {menu.tsumo && button("ツモ", styles.win, () => send(menu.tsumo!))}
       {menu.ron && button("ロン", styles.win, () => send(menu.ron!))}
       {menu.pass && button("スキップ", styles.quiet, () => send(menu.pass!))}

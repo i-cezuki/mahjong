@@ -315,6 +315,30 @@ describe("半荘の進行", () => {
     });
   });
 
+  it("2倍リーチを使ったことは次の局に持ち越す", () => {
+    let game = startGame({ seed: seedOf(1), firstDealer: 0 }).state;
+    // 么九牌だけを切ると流し役満になるので、4筒を引いて切る
+    game = withRound(game, { hands: [PLAIN, JUNK_A, JUNK_B], live: "4p4p" });
+    game = play(game, {
+      type: "riichi",
+      seat: 0,
+      tile: game.round.drawn!,
+      doubleStake: true,
+    });
+    expect(game.round.doubleStakeUsed).toEqual([true, false, false]);
+
+    // 次の人の打牌で流局にする
+    game.round.wall.live = [];
+    game = play(game, { type: "discard", seat: 1, tile: game.round.drawn! });
+    expect(game.round.phase).toBe("ended");
+    game = play(game, { type: "nextRound", seed: seedOf(2) });
+    expect(game.round.doubleStakeUsed).toEqual([true, false, false]);
+    const stakes = legalActions(game.round, 0).flatMap((action) =>
+      action.type === "riichi" ? [action.doubleStake] : [],
+    );
+    expect(stakes).not.toContain(true);
+  });
+
   it("局ごとの祝儀を累計する", () => {
     let game = startGame({ seed: seedOf(1), firstDealer: 0 }).state;
     // 天和：役満祝儀10枚ずつ、サイコロチャンスあり

@@ -178,6 +178,10 @@ export function applyGameAction(game: GameState, action: GameAction): GameStep {
       honba: plan.honba,
       kyotaku: game.round.kyotaku,
       points: game.round.points,
+      // 古い対局には記録がない。startRound が全員未使用として扱う
+      ...(game.round.doubleStakeUsed && {
+        doubleStakeUsed: game.round.doubleStakeUsed,
+      }),
     });
     return {
       state: {

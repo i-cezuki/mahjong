@@ -7,8 +7,10 @@ type Of<T extends TableAction["type"]> = Extract<TableAction, { type: T }>;
 export interface ActionMenu {
   /** 切れる牌 */
   discards: TileId[];
-  /** リーチして切れる牌（通常と2倍で同じ） */
+  /** 通常のリーチをして切れる牌 */
   riichiTiles: TileId[];
+  /** 2倍リーチをして切れる牌。半荘で1回使ったあとは空になる */
+  doubleRiichiTiles: TileId[];
   tsumo: TableAction | null;
   ron: TableAction | null;
   pons: Of<"pon">[];
@@ -25,9 +27,14 @@ export function buildMenu(actions: readonly TableAction[]): ActionMenu {
     actions.filter((a): a is Of<T> => a.type === type);
   const one = (type: TableAction["type"]) =>
     actions.find((a) => a.type === type) ?? null;
+  const riichi = (doubleStake: boolean) =>
+    all("riichi")
+      .filter((a) => a.doubleStake === doubleStake)
+      .map((a) => a.tile);
   return {
     discards: all("discard").map((a) => a.tile),
-    riichiTiles: [...new Set(all("riichi").map((a) => a.tile))],
+    riichiTiles: riichi(false),
+    doubleRiichiTiles: riichi(true),
     tsumo: one("tsumo"),
     ron: one("ron"),
     pons: all("pon"),

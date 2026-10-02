@@ -40,6 +40,8 @@ export interface RoundSetup {
   honba?: number;
   kyotaku?: number;
   points?: PerSeat<number>;
+  /** この半荘で2倍リーチをすでに使った人 */
+  doubleStakeUsed?: PerSeat<boolean>;
   /** サイコロに使う種 */
   seed?: string;
 }
@@ -81,6 +83,9 @@ export function startRoundFromDeck(
     rivers: [[], [], []],
     wall,
     riichi: [null, null, null],
+    doubleStakeUsed: setup.doubleStakeUsed
+      ? [...setup.doubleStakeUsed]
+      : [false, false, false],
     tempFuriten: [false, false, false],
     anyCall: false,
     kanCount: 0,
@@ -129,6 +134,14 @@ function discardableTiles(state: RoundState, seat: Seat): TileId[] {
 function canTsumo(state: RoundState, seat: Seat): boolean {
   if (state.drawn === null) return false;
   return evaluateWin(buildWinInput(state, seat, state.drawn, true)) !== null;
+}
+
+/**
+ * 2倍リーチを宣言できるか。半荘に1人1回まで。
+ * この決まりができる前に保存された対局には記録がないので、使っていない扱いにする。
+ */
+function canDoubleStake(state: RoundState, seat: Seat): boolean {
+  return !state.doubleStakeUsed?.[seat];
 }
 
 /** その牌を切ってリーチできるか（切ったあとが聴牌）。 */
@@ -227,7 +240,9 @@ export function legalActions(state: RoundState, seat: Seat): Action[] {
       for (const tile of discards) {
         if (!canRiichiWith(state, seat, tile)) continue;
         actions.push({ type: "riichi", seat, tile, doubleStake: false });
-        actions.push({ type: "riichi", seat, tile, doubleStake: true });
+        if (canDoubleStake(state, seat)) {
+          actions.push({ type: "riichi", seat, tile, doubleStake: true });
+        }
       }
       for (const kind of ankanKinds(state, seat)) {
         actions.push({ type: "ankan", seat, kind });
@@ -270,7 +285,8 @@ function isAllowed(state: RoundState, action: Action): boolean {
     case "riichi":
       return (
         discardableTiles(state, seat).includes(action.tile) &&
-        canRiichiWith(state, seat, action.tile)
+        canRiichiWith(state, seat, action.tile) &&
+        (!action.doubleStake || canDoubleStake(state, seat))
       );
     case "tsumo":
       return canTsumo(state, seat);
@@ -580,6 +596,13 @@ function resolveDiscard(state: RoundState, events: RoundEvent[]): void {
     const riichi = state.riichi[discarder]!;
     state.points[discarder] -= pending.riichiStake;
     state.kyotaku += pending.riichiStake;
+    if (riichi.doubleStake) {
+      const used: PerSeat<boolean> = state.doubleStakeUsed
+        ? [...state.doubleStakeUsed]
+        : [false, false, false];
+      used[discarder] = true;
+      state.doubleStakeUsed = used;
+    }
     events.push({
       type: "riichi",
       seat: discarder,

@@ -25,11 +25,20 @@ describe("buildMenu", () => {
     const menu = buildMenu(turn);
     expect(menu.discards).toEqual([10, 20]);
     expect(menu.riichiTiles).toEqual([20]);
+    expect(menu.doubleRiichiTiles).toEqual([20]);
     expect(menu.tsumo).toEqual({ type: "tsumo", seat });
     expect(menu.ankans).toHaveLength(1);
     expect(menu.kakans).toHaveLength(1);
     expect(menu.ron).toBeNull();
     expect(menu.pass).toBeNull();
+  });
+
+  it("2倍リーチを使ったあとは、通常のリーチの牌だけになる", () => {
+    const menu = buildMenu(
+      turn.filter((a) => !(a.type === "riichi" && a.doubleStake)),
+    );
+    expect(menu.riichiTiles).toEqual([20]);
+    expect(menu.doubleRiichiTiles).toEqual([]);
   });
 
   it("応答の操作をまとめる", () => {

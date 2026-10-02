@@ -626,6 +626,57 @@ describe("リーチ", () => {
     expect(state.riichi[0]?.doubleStake).toBe(true);
   });
 
+  it("2倍リーチが成立すると、使ったことを記録する。通常のリーチでは記録しない", () => {
+    expect(riichi(start(spec), "3z", true).doubleStakeUsed).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    expect(riichi(start(spec), "3z").doubleStakeUsed).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it("2倍リーチは半荘に1回まで。使った人は通常のリーチしか宣言できない", () => {
+    const state = start(spec, { doubleStakeUsed: [true, false, false] });
+    const stakes = legalActions(state, 0).flatMap((action) =>
+      action.type === "riichi" ? [action.doubleStake] : [],
+    );
+    expect(stakes.length).toBeGreaterThan(0);
+    expect(stakes).not.toContain(true);
+    expectNotAllowed(state, {
+      type: "riichi",
+      seat: 0,
+      tile: find(state, 0, "3z"),
+      doubleStake: true,
+    });
+    expect(riichi(state, "3z").riichi[0]?.doubleStake).toBe(false);
+  });
+
+  it("ほかの人が2倍リーチを使っていても、自分は宣言できる", () => {
+    const state = start(spec, { doubleStakeUsed: [false, true, true] });
+    expect(riichi(state, "3z", true).riichi[0]?.doubleStake).toBe(true);
+  });
+
+  it("宣言牌でロンされた2倍リーチは成立しないので、使ったことにならない", () => {
+    let state = start({
+      hands: ["111p999p111s44z5s3z", TANYAO_TANKI, JUNK_A],
+      live: "3z",
+    });
+    state = riichi(state, "5s", true);
+    state = act(state, { type: "ron", seat: 1 });
+    expect(state.doubleStakeUsed).toEqual([false, false, false]);
+  });
+
+  it("記録のない状態（この決まりができる前に始まった対局）でも2倍リーチを宣言できる", () => {
+    const old = start(spec);
+    delete (old as Partial<RoundState>).doubleStakeUsed;
+    const state = riichi(old, "3z", true);
+    expect(state.doubleStakeUsed).toEqual([true, false, false]);
+  });
+
   it("持ち点が足りなくても宣言でき、マイナスになる", () => {
     const state = riichi(start(spec, { points: [500, 30000, 59500] }), "3z");
     expect(state.points[0]).toBe(-500);

@@ -126,6 +126,8 @@ export interface RoundState {
   wall: Wall;
 
   riichi: PerSeat<RiichiState | null>;
+  /** この半荘で2倍リーチを成立させた人。2倍リーチは1人1回まで。次の局に持ち越す。 */
+  doubleStakeUsed: PerSeat<boolean>;
   /** 同巡フリテン */
   tempFuriten: PerSeat<boolean>;
   /** この局でポンか槓があった（ダブルリーチ、天和、地和が消える） */
