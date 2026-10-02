@@ -39,6 +39,17 @@ export default async function Home() {
           </button>
         </form>
       </div>
+      <p className="text-xs opacity-50">
+        牌画像：
+        <a
+          href="https://mj-king.net/sozai/"
+          target="_blank"
+          rel="noreferrer"
+          className="underline"
+        >
+          麻雀王国
+        </a>
+      </p>
     </Screen>
   );
 }
