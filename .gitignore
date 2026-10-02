@@ -46,3 +46,6 @@ next-env.d.ts
 
 # 環境変数のひな形はコミットする
 !.env.example
+
+# Playwright MCP のスクリーンショット
+/.playwright-mcp/

@@ -20,7 +20,12 @@ npm run test:play  # APIとRealtimeを通して3人で1半荘を進める（下�
 - `src/engine/`：UI、DB、通信に依存しないゲームのロジック。
 - `src/server/`：DBアクセス、認証確認、操作の受付、画面データの生成。`table.ts` がクライアントに送る内容を1か所で作る。
 - `src/app/api/`：ルームと対局のAPI。一覧は仕様書の Realtime Protocol を参照。
-- `src/app/`：画面。対局の画面は通信を確かめるための仮のもの。
+- `src/app/`：画面。対局の画面は `src/app/games/[id]/` にあり、`game-client.tsx` が通信、`table/` が卓の部品、`logic/` が画面に依存しない判断（席の並び、操作の整理、サイコロの再生手順）。
+- `public/tiles/`：牌の画像。麻雀王国の麻雀素材（<https://mj-king.net/sozai/> の牌画2）と、それを加工して作った赤5、金5、ポッチ、逆ポッチ、花牌。作り直すときは `node scripts/make-tiles.mjs`。
+
+### 卓の見た目を確かめる
+
+`npm run dev` を起動して <http://localhost:3000/dev/table> を開く。ログインもSupabaseも要らない。エンジンをブラウザで動かし、自分以外の2人は自動で打つ。画面の上のボタンで、局や半荘の終わりまで進めたり、聴牌の配牌やサイコロチャンスを出したりできる。本番では開けない。
 
 ### 通しの確認
 

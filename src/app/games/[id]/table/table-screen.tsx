@@ -67,11 +67,13 @@ function Table({
   // 自動和了と鳴きなし。同じ版番号には1回しか送らない
   const autoSent = useRef(-1);
   useEffect(() => {
+    // 前の操作の応答を待っている間は送れないので、返ってきてから送る
+    if (busy) return;
     const action = autoAction(view.actions, settings);
     if (!action || autoSent.current === version) return;
     autoSent.current = version;
     send(action);
-  }, [view.actions, settings, version, send]);
+  }, [view.actions, settings, version, busy, send]);
 
   const riichi = mode === "riichi" || mode === "doubleRiichi";
   const pickable = riichi ? menu.riichiTiles : menu.discards;
@@ -205,7 +207,7 @@ function Table({
 
       {view.outcome && !peeking && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/55">
-          <div className="flex max-h-[452px] w-[760px] flex-col gap-3 overflow-y-auto rounded-lg border border-cyan-400/70 bg-[#07122b]/95 p-4">
+          <div className="flex max-h-[452px] w-[760px] flex-col gap-3 overflow-y-auto rounded-lg border border-cyan-400/70 bg-[#07122b] p-4">
             <RoundResult
               view={view}
               names={names}

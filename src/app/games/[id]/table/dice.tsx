@@ -94,17 +94,18 @@ function Playing({
         <Die face={result.faces[0]} size={22} />
         <Die face={result.faces[1]} size={22} />
       </p>
-      <p className="text-sm opacity-80">
-        {step.attempt} / {DICE_ATTEMPTS} 回目　当たり {hits}回
+      <p className="text-base">
+        {step.attempt} / {DICE_ATTEMPTS} 回目
+        <span className="ml-4 text-amber-300">当たり {hits}回</span>
       </p>
-      <div className="flex h-16 items-center gap-4">
+      <div className="flex h-24 items-center gap-6">
         {stopped ? (
           <>
-            <Die face={step.roll[0]} size={60} />
-            <Die face={step.roll[1]} size={60} />
+            <Die face={step.roll[0]} size={80} />
+            <Die face={step.roll[1]} size={80} />
           </>
         ) : (
-          <RollingDice size={60} />
+          <RollingDice size={80} />
         )}
       </div>
       <p className="h-8 text-2xl font-bold">

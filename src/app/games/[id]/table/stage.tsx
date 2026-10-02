@@ -25,8 +25,9 @@ function fitScale() {
  */
 export function Stage({ children }: { children: ReactNode }) {
   const scale = useSyncExternalStore(subscribe, fitScale, () => 1);
+  // touch-manipulation：2回タップの打牌で、ブラウザの拡大が働かないようにする
   return (
-    <main className="fixed inset-0 overflow-hidden bg-background select-none">
+    <main className="fixed inset-0 touch-manipulation overflow-hidden bg-background select-none">
       <div
         className="absolute top-1/2 left-1/2 max-[700px]:portrait:hidden"
         style={{
