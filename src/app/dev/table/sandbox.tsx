@@ -8,6 +8,7 @@ import { buildDeck } from "@/engine/testing";
 import { applyTableAction, buildView, startTable } from "@/server/table";
 import type {
   DiceResult,
+  PlayAction,
   PlayerView,
   TableAction,
   TableState,
@@ -32,8 +33,8 @@ const pick = <T,>(items: readonly T[]): T =>
   items[Math.floor(Math.random() * items.length)]!;
 
 /** 自動で打つ人の操作。和了できれば和了し、鳴きはたまにだけする。 */
-function botAction(actions: readonly TableAction[]): TableAction {
-  const of = (type: TableAction["type"]) =>
+function botAction(actions: readonly PlayAction[]): PlayAction {
+  const of = (type: PlayAction["type"]) =>
     actions.filter((a) => a.type === type);
   const win = [...of("tsumo"), ...of("ron"), ...of("confirm")];
   if (win.length > 0) return win[0]!;
@@ -47,7 +48,7 @@ function botAction(actions: readonly TableAction[]): TableAction {
   return discards.length > 0 ? pick(discards) : pick(actions);
 }
 
-function step(table: TableState, action: TableAction): TableState {
+function step(table: TableState, action: PlayAction): TableState {
   return applyTableAction(table, action, randomSeed).table;
 }
 
@@ -167,6 +168,7 @@ export function Sandbox() {
         setState((current) => ({ ...current, version: current.version + 1 }));
         return;
       }
+      if (action.type === "resume") return;
       if (action.type === "confirm") setFake(null);
       update((current) => step(current, action));
     },

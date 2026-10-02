@@ -109,6 +109,8 @@ export async function submitAction(params: {
 
   const action = parseAction(params.action, seat as Seat);
   if (!action) return { ok: false, error: "invalid" };
+  // resume は時計（clock.ts）が扱う。つなぐまでは受け付けない
+  if (action.type === "resume") return { ok: false, error: "illegal" };
 
   const before = secret.data.state as unknown as TableState;
   let step;

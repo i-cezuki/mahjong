@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DICE_ROLL_MS, DICE_SHOW_MS } from "@/lib/timing";
 import type { DiceResult } from "@/server/table";
-
-/** サイコロが転がっている時間 */
-const ROLL_MS = 1200;
-/** 止まった出目と当たり外れを見せる時間 */
-const SHOW_MS = 1000;
 
 export interface DicePlayback {
   /** 再生中のチャンス（dice の添字）。再生していなければ null */
@@ -46,7 +42,7 @@ export function useDicePlayback(
           }
           return { done: p.done + 1, step: 0, rolling: true };
         }),
-      position.rolling ? ROLL_MS : SHOW_MS,
+      position.rolling ? DICE_ROLL_MS : DICE_SHOW_MS,
     );
     return () => clearTimeout(timer);
   }, [position, steps]);

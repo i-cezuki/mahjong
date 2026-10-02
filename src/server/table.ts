@@ -22,6 +22,18 @@ import type {
   TileKind,
 } from "@/engine";
 
+/** 持ち時間の状態。ルールは clock.ts にある。 */
+export interface Clock {
+  /** この状態を保存したサーバーの時刻（エポックms） */
+  savedAt: number;
+  /** いま待っている操作の期限（エポックms）。待っていなければ null */
+  deadline: number | null;
+  /** 残り持ち時間（ms）。局が変わると戻る */
+  bank: PerSeat<number>;
+  /** 即ツモ切り中。時間切れでなり、本人の操作で解除する */
+  auto: PerSeat<boolean>;
+}
+
 /**
  * サーバーが保存する対局の全状態。エンジンの状態に、エンジンの外で決まることを足したもの。
  * UI、DB、通信には依存しない。
@@ -32,12 +44,17 @@ export interface TableState {
   confirmed: PerSeat<boolean>;
   /** この局で振ったサイコロの結果 */
   dice: DiceResult[];
+  /** フェーズ8より前に始まった対局にはない。次の操作のときに clock.ts が補う。 */
+  clock?: Clock;
 }
 
 export type DiceResult = Omit<Extract<RoundEvent, { type: "dice" }>, "type">;
 
-/** confirm は局の結果の確認。 */
-export type TableAction = Action | { type: "confirm"; seat: Seat };
+/** 対局を進める操作。confirm は局の結果の確認。 */
+export type PlayAction = Action | { type: "confirm"; seat: Seat };
+
+/** クライアントが送れる操作。resume は即ツモ切りの解除（clock.ts が扱う）。 */
+export type TableAction = PlayAction | { type: "resume"; seat: Seat };
 
 /** 牌譜に残すイベント。seed は直後に始まる局の乱数の種。 */
 export type TableEvent = GameEvent | { type: "seed"; seed: string };
@@ -77,7 +94,7 @@ export interface PlayerView {
   lastDiscard: { seat: Seat; tile: TileId } | null;
 
   /** いま自分にできる操作。クライアントは合法手を自分で判定しない。 */
-  actions: TableAction[];
+  actions: PlayAction[];
 
   /** 出目の指定を待っているサイコロチャンス */
   diceChance: { seat: Seat; remaining: number } | null;
@@ -87,6 +104,15 @@ export interface PlayerView {
   revealed: PerSeat<TileId[] | null>;
   confirmed: PerSeat<boolean>;
   result: GameResult | null;
+
+  /** いま待っている操作の期限（サーバーの時刻、エポックms）。待っていなければ null */
+  deadline: number | null;
+  /** この画面データを保存したサーバーの時刻。画面はこれとの差で残り時間を計算する */
+  serverNow: number;
+  /** 自分の残り持ち時間（ms） */
+  bank: number;
+  /** 即ツモ切り中の人 */
+  auto: PerSeat<boolean>;
 }
 
 /** 席0を起家として対局を始める。席順は呼び出す側が決める。 */
@@ -108,7 +134,7 @@ function isRoundResult(table: TableState): boolean {
  */
 export function applyTableAction(
   table: TableState,
-  action: TableAction,
+  action: PlayAction,
   nextSeed: () => string,
 ): TableStep {
   if (action.type !== "confirm") {
@@ -145,12 +171,18 @@ export function applyTableAction(
   const seed = nextSeed();
   const step = applyGameAction(table.game, { type: "nextRound", seed });
   return {
-    table: { game: step.state, confirmed: [false, false, false], dice: [] },
+    table: {
+      ...table,
+      game: step.state,
+      confirmed: [false, false, false],
+      dice: [],
+    },
     events: [{ type: "seed", seed }, ...step.events],
   };
 }
 
-function actionsFor(table: TableState, seat: Seat): TableAction[] {
+/** その席がいまできる操作。局の結果では確認、それ以外はエンジンの合法手。 */
+export function actionsFor(table: TableState, seat: Seat): PlayAction[] {
   if (table.game.phase === "ended") return [];
   if (isRoundResult(table)) {
     return table.confirmed[seat] ? [] : [{ type: "confirm", seat }];
@@ -216,6 +248,11 @@ export function buildView(table: TableState, seat: Seat): PlayerView {
     }),
     confirmed: table.confirmed,
     result: game.result,
+
+    deadline: table.clock?.deadline ?? null,
+    serverNow: table.clock?.savedAt ?? 0,
+    bank: table.clock?.bank[seat] ?? 0,
+    auto: table.clock?.auto ?? [false, false, false],
   };
   return structuredClone(view);
 }
@@ -261,6 +298,7 @@ export function parseAction(input: unknown, seat: Seat): TableAction | null {
     case "minkan":
     case "pass":
     case "confirm":
+    case "resume":
       return { type: raw.type, seat };
     case "discard":
     case "kakan":

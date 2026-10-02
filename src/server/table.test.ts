@@ -68,8 +68,11 @@ function visibleTiles(table: TableState, seat: Seat): Set<TileId> {
 
 const VIEW_KEYS = [
   "actions",
+  "auto",
+  "bank",
   "chips",
   "confirmed",
+  "deadline",
   "dealer",
   "dice",
   "diceChance",
@@ -93,6 +96,7 @@ const VIEW_KEYS = [
   "roundPhase",
   "roundWind",
   "seat",
+  "serverNow",
   "turn",
   "wallCount",
 ];
@@ -314,7 +318,80 @@ describe("サイコロチャンス", () => {
   });
 });
 
+describe("持ち時間の項目", () => {
+  it("clock がなければ、期限なし・自動なしとして出す", () => {
+    const { table } = startTable({ seed: seedOf(2) });
+    const view = buildView(table, 1);
+    expect(view.deadline).toBeNull();
+    expect(view.serverNow).toBe(0);
+    expect(view.bank).toBe(0);
+    expect(view.auto).toEqual([false, false, false]);
+  });
+
+  it("期限、保存した時刻、自分の持ち時間、3人の自動を出す。他人の持ち時間は出さない", () => {
+    const start = startTable({ seed: seedOf(2) }).table;
+    const table: TableState = {
+      ...start,
+      clock: {
+        savedAt: 5_000,
+        deadline: 9_000,
+        bank: [11_111, 22_222, 33_333],
+        auto: [false, true, false],
+      },
+    };
+    const view = buildView(table, 1);
+    expect(view.deadline).toBe(9_000);
+    expect(view.serverNow).toBe(5_000);
+    expect(view.bank).toBe(22_222);
+    expect(view.auto).toEqual([false, true, false]);
+    expect(JSON.stringify(view)).not.toContain("11111");
+    expect(JSON.stringify(view)).not.toContain("33333");
+  });
+
+  it("次の局へ進んでも clock を引き継ぐ", () => {
+    // 親（席0）の天和
+    const round = startRoundFromDeck(
+      buildDeck({
+        hands: [
+          "123p456p789s111s4z",
+          "19m258p36s4s23z567z",
+          "19m369p25s7s23z567z",
+        ],
+        live: "4z",
+      }),
+      { dealer: 0 },
+    ).state;
+    const start = startTable({ seed: seedOf(1) }).table;
+    const clock = {
+      savedAt: 1,
+      deadline: 2,
+      bank: [3, 4, 5] as [number, number, number],
+      auto: [false, false, false] as [boolean, boolean, boolean],
+    };
+    let table: TableState = { ...start, game: { ...start.game, round }, clock };
+    const next = () => seedOf(2);
+    table = applyTableAction(table, { type: "tsumo", seat: 0 }, next).table;
+    table = applyTableAction(
+      table,
+      { type: "dice", seat: 0, faces: [1, 2] },
+      next,
+    ).table;
+    for (const seat of SEATS) {
+      table = applyTableAction(table, { type: "confirm", seat }, next).table;
+    }
+    expect(table.game.round.phase).toBe("awaitTurnAction");
+    expect(table.clock).toEqual(clock);
+  });
+});
+
 describe("parseAction（クライアントから届いた操作の検証）", () => {
+  it("復帰（resume）を受け付ける", () => {
+    expect(parseAction({ type: "resume" }, 2)).toEqual({
+      type: "resume",
+      seat: 2,
+    });
+  });
+
   const ok = (input: unknown, expected: TableAction) =>
     expect(parseAction(input, 1)).toEqual(expected);
 
