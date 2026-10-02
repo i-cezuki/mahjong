@@ -43,3 +43,6 @@ next-env.d.ts
 # reference images (not part of the project)
 /IMG_*.JPG
 /IMG_*.PNG
+
+# 環境変数のひな形はコミットする
+!.env.example

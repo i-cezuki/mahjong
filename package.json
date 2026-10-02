@@ -14,7 +14,8 @@
     "format:check": "prettier --check .",
     "db:start": "supabase db start",
     "db:reset": "supabase db reset",
-    "test:db": "supabase test db"
+    "test:db": "supabase test db",
+    "db:types": "supabase gen types typescript --local > src/server/database.types.ts && prettier --write src/server/database.types.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
