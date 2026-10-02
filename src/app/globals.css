@@ -40,3 +40,49 @@ body {
 .dice-shake {
   animation: dice-shake 0.24s linear infinite;
 }
+
+/* 発声（リーチ、ポン、ロンなど）が席の側からすべり込む */
+@keyframes cutin-left {
+  from {
+    opacity: 0;
+    transform: translateX(-120px) skewX(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) skewX(-12deg);
+  }
+}
+
+@keyframes cutin-right {
+  from {
+    opacity: 0;
+    transform: translateX(120px) skewX(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) skewX(-12deg);
+  }
+}
+
+@keyframes cutin-bottom {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 80px) skewX(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) skewX(-12deg);
+  }
+}
+
+.cutin-from-left {
+  animation: cutin-left 0.16s ease-out both;
+}
+
+.cutin-from-right {
+  animation: cutin-right 0.16s ease-out both;
+}
+
+.cutin-from-bottom {
+  animation: cutin-bottom 0.16s ease-out both;
+}

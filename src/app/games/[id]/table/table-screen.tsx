@@ -7,6 +7,7 @@ import { autoAction, buildMenu, tsumogiriAction } from "../logic/actions";
 import type { AutoSettings } from "../logic/actions";
 import { seatLayout } from "../logic/seats";
 import { ActionBar, Toggles } from "./action-bar";
+import { CallCutin } from "./call-cutin";
 import type { PickMode } from "./action-bar";
 import { CenterPanel } from "./center-panel";
 import { ClockBadge } from "./clock-badge";
@@ -17,6 +18,7 @@ import { Opponent } from "./opponent";
 import { River } from "./river";
 import { RoundResult, signed } from "./round-result";
 import { Stage } from "./stage";
+import { useCalls } from "./use-calls";
 import { useDicePlayback } from "./use-dice-playback";
 import { useFlowerReveal } from "./use-flower-reveal";
 import { WallPanel } from "./wall";
@@ -73,6 +75,8 @@ function Table({
   const menu = buildMenu(mine.staging ? [] : view.actions);
   const playback = useDicePlayback(view.dice, shownDice);
   const dicePlaying = playback.index !== null;
+  // リーチ、鳴き、和了の発声。和了の発声の間は、局の結果を出すのを待つ
+  const { calls, resultHeld } = useCalls(view, version);
 
   /** 自分が即ツモ切り中 */
   const myAuto = view.auto[view.seat];
@@ -292,7 +296,7 @@ function Table({
         <Melds melds={view.melds[layout.self]} width={36} />
       </div>
 
-      {view.outcome && !peeking && (
+      {view.outcome && !peeking && !resultHeld && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/55">
           <div className="relative flex max-h-[452px] w-[760px] flex-col gap-3 overflow-y-auto rounded-lg border border-cyan-400/70 bg-[#07122b] p-4">
             <RoundResult
@@ -332,6 +336,7 @@ function Table({
           結果に戻る
         </button>
       )}
+      <CallCutin calls={calls} layout={layout} names={names} />
       {myAuto && view.phase === "playing" && (
         <button
           type="button"
