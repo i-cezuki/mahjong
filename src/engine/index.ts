@@ -4,6 +4,7 @@ export * from "./wall";
 export * from "./round";
 export * from "./agari";
 export * from "./shanten";
+export * from "./waits";
 export * from "./yaku";
 export * from "./score";
 export * from "./chips";

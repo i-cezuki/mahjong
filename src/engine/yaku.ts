@@ -1,4 +1,4 @@
-import { decompose, isChiitoitsu, isKokushi } from "./agari";
+import { completesRyanmen, decompose, isChiitoitsu, isKokushi } from "./agari";
 import type { Meld } from "./agari";
 import {
   doraKind,
@@ -205,10 +205,7 @@ function shapesOf(ctx: Context): Shape[] {
       if (suitOf(group.kind) !== suitOf(winKind)) return;
       const position = rankOf(winKind) - rankOf(group.kind);
       if (position < 0 || position > 2) return;
-      const first = rankOf(group.kind);
-      const ryanmen =
-        (position === 0 && first !== 7) || (position === 2 && first !== 1);
-      shapes.push(build(null, ryanmen));
+      shapes.push(build(null, completesRyanmen(group, winKind)));
     });
   }
   return shapes;

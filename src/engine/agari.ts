@@ -87,6 +87,18 @@ export function decompose(
   return results;
 }
 
+/**
+ * 和了牌が、その順子の両面待ちを埋めたか。
+ * 順子の端の牌で、反対側がペンチャン（12の3待ち、89の7待ち）でないとき。
+ */
+export function completesRyanmen(group: Group, winKind: TileKind): boolean {
+  if (group.type !== "shuntsu") return false;
+  if (suitOf(group.kind) !== suitOf(winKind)) return false;
+  const first = rankOf(group.kind);
+  const position = rankOf(winKind) - first;
+  return (position === 0 && first !== 7) || (position === 2 && first !== 1);
+}
+
 /** 七対子。同じ牌4枚は2対子として数える（4枚使いの七対子）。 */
 export function isChiitoitsu(kinds: readonly TileKind[]): boolean {
   if (kinds.length !== 14) return false;
