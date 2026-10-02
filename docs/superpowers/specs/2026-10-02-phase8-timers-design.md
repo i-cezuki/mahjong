@@ -118,7 +118,7 @@ interface Clock {
 ### `clock.ts` の関数
 
 - `startClock(table, now)`：対局の開始時。持ち時間を満たし、最初の期限（+10秒）を決める。
-- `applyTimed(table, action, ctx)`：プレイヤーの操作。手番の操作なら持ち時間を減らし、操作した人の自動を解除し、`applyTableAction` を呼び、あとは `settle` に渡す。`resume` は自動の解除だけ行う。
+- `applyTimed(table, action, ctx)`：プレイヤーの操作。手番の操作なら持ち時間を減らし、操作した人の自動を解除し、`applyTableAction` を呼び、あとは `settle` に渡す。`resume` は自動を解除して `settle` に渡す（3人とも自動で止まっていた対局はここで再開する）。待ちの途中で復帰しても、その待ちの期限は変えない。止まっていた対局では期限を決め直す。
 - `applyTimeout(table, ctx)`：時間切れの申告。期限前なら `IllegalActionError`。待たれている人に自動処理を当てて自動にし、`settle` に渡す。
 - `settle`（内部）：自動の人が待たれている間、その人の自動処理を続けて当てる。3人とも自動なら止めて期限を `null` にする。止まったところで次の期限を決める。局が変わったら持ち時間を戻す。
 
