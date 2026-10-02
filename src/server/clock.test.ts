@@ -1,0 +1,377 @@
+import { describe, expect, it } from "vitest";
+import {
+  IllegalActionError,
+  SEATS,
+  diceFaceChoices,
+  startRoundFromDeck,
+  tileOf,
+} from "@/engine";
+import type { Seat } from "@/engine";
+import { buildDeck, seedOf } from "@/engine/testing";
+import { applyTimed, applyTimeout, startClock } from "./clock";
+import type { ClockContext, TimedTable } from "./clock";
+import { actionsFor, startTable } from "./table";
+import type { PlayAction, TableState } from "./table";
+
+const T0 = 1_000_000;
+
+function ctx(now: number, pick: (count: number) => number = () => 0) {
+  let n = 0;
+  const context: ClockContext = {
+    now,
+    nextSeed: () => seedOf(900 + ++n),
+    pick,
+  };
+  return context;
+}
+
+function start(seed = 1): TimedTable {
+  return startClock(startTable({ seed: seedOf(seed) }).table, T0);
+}
+
+function withRound(deck: Parameters<typeof buildDeck>[0]): TimedTable {
+  const round = startRoundFromDeck(buildDeck(deck), { dealer: 0 }).state;
+  const base = startTable({ seed: seedOf(1) }).table;
+  return startClock({ ...base, game: { ...base.game, round } }, T0);
+}
+
+/** 親（席0）が天和できる局。和了するとサイコロチャンスになる。 */
+const tenhou = () =>
+  withRound({
+    hands: ["123p456p789s111s4z", "19m258p36s4s23z567z", "19m369p25s7s23z567z"],
+    live: "4z",
+  });
+
+/** 席0が東を切ると、席1がポンできる局。 */
+const ponnable = () =>
+  withRound({
+    hands: [
+      "123456789p 234s 1z",
+      "11z 19m 147p 268s 234z",
+      "19m 258p 147s 23467z",
+    ],
+    live: "7z",
+  });
+
+const discardsOf = (table: TableState, seat: Seat) =>
+  actionsFor(table, seat).filter(
+    (a): a is Extract<PlayAction, { type: "discard" }> => a.type === "discard",
+  );
+
+/** 待たれている人のうち自動でない1人が、和了も鳴きもせずに進める。 */
+function advance(table: TimedTable, now: number): TimedTable {
+  const seat = SEATS.find(
+    (s) => actionsFor(table, s).length > 0 && !table.clock.auto[s],
+  );
+  if (seat === undefined) throw new Error("待たれている人がいません");
+  const actions = actionsFor(table, seat);
+  const discards = discardsOf(table, seat);
+  const action =
+    actions.find((a) => a.type === "confirm") ??
+    actions.find((a) => a.type === "pass") ??
+    discards[discards.length - 1] ??
+    actions[0]!;
+  return applyTimed(table, action, ctx(now)).table;
+}
+
+describe("startClock（対局の開始）", () => {
+  it("持ち時間は20秒ずつ、最初の手番は5秒＋20秒＋10秒", () => {
+    const table = start();
+    expect(table.clock).toEqual({
+      savedAt: T0,
+      deadline: T0 + 35_000,
+      bank: [20_000, 20_000, 20_000],
+      auto: [false, false, false],
+    });
+  });
+});
+
+describe("applyTimed（操作）", () => {
+  it("基本の時間のうちに切れば、持ち時間は減らない", () => {
+    const table = start();
+    const next = applyTimed(
+      table,
+      discardsOf(table, 0)[0]!,
+      ctx(T0 + 14_000),
+    ).table;
+    expect(next.clock.bank).toEqual([20_000, 20_000, 20_000]);
+    expect(next.clock.savedAt).toBe(T0 + 14_000);
+  });
+
+  it("基本の時間を超えた分だけ持ち時間が減る", () => {
+    const table = start();
+    // 最初の手番は15秒までが基本。22秒で切ると7秒減る
+    const next = applyTimed(
+      table,
+      discardsOf(table, 0)[0]!,
+      ctx(T0 + 22_000),
+    ).table;
+    expect(next.clock.bank).toEqual([13_000, 20_000, 20_000]);
+  });
+
+  it("期限を過ぎていても、時間切れが処理される前の操作は受け付ける", () => {
+    const table = start();
+    const next = applyTimed(
+      table,
+      discardsOf(table, 0)[0]!,
+      ctx(T0 + 40_000),
+    ).table;
+    expect(next.game.round.rivers[0]).toHaveLength(1);
+    expect(next.clock.bank[0]).toBe(0);
+    expect(next.clock.auto).toEqual([false, false, false]);
+  });
+
+  it("次の待ちの期限は場面で決まる（応答は15秒、手番は5秒＋持ち時間）", () => {
+    const table = ponnable();
+    const east = discardsOf(table, 0).find(
+      (a) => tileOf(a.tile).kind === "1z",
+    )!;
+    const waiting = applyTimed(table, east, ctx(T0 + 1_000)).table;
+    expect(waiting.game.round.phase).toBe("awaitResponses");
+    expect(waiting.clock.deadline).toBe(T0 + 1_000 + 15_000);
+
+    const passed = applyTimed(
+      waiting,
+      { type: "pass", seat: 1 },
+      ctx(T0 + 2_000),
+    ).table;
+    expect(passed.game.round.phase).toBe("awaitTurnAction");
+    expect(passed.game.round.turn).toBe(1);
+    expect(passed.clock.deadline).toBe(T0 + 2_000 + 5_000 + 20_000);
+  });
+
+  it("不正な操作は IllegalActionError で、元の状態を書き換えない", () => {
+    const table = start();
+    const before = structuredClone(table);
+    const tile = table.game.round.hands[1][0]!;
+    expect(() =>
+      applyTimed(table, { type: "discard", seat: 1, tile }, ctx(T0 + 30_000)),
+    ).toThrow(IllegalActionError);
+    applyTimed(table, discardsOf(table, 0)[0]!, ctx(T0 + 30_000));
+    expect(table).toEqual(before);
+  });
+
+  it("clock のない状態には、操作のときに初期値を補う", () => {
+    const legacy = startTable({ seed: seedOf(1) }).table;
+    expect(() => applyTimeout(legacy, ctx(T0))).toThrow(IllegalActionError);
+    const next = applyTimed(legacy, discardsOf(legacy, 0)[0]!, ctx(T0)).table;
+    expect(next.clock.bank).toEqual([20_000, 20_000, 20_000]);
+    expect(next.clock.deadline).not.toBeNull();
+  });
+});
+
+describe("applyTimeout（時間切れ）", () => {
+  it("期限前の申告は拒否する", () => {
+    const table = start();
+    expect(() => applyTimeout(table, ctx(T0 + 34_999))).toThrow(
+      IllegalActionError,
+    );
+  });
+
+  it("手番の時間切れはツモ切りで、その人は自動になり持ち時間がなくなる", () => {
+    const table = start();
+    const drawn = table.game.round.drawn;
+    const before = structuredClone(table);
+    const next = applyTimeout(table, ctx(T0 + 35_000)).table;
+    expect(next.game.round.rivers[0]).toEqual([
+      expect.objectContaining({ tile: drawn, tsumogiri: true }),
+    ]);
+    expect(next.clock.auto).toEqual([true, false, false]);
+    expect(next.clock.bank[0]).toBe(0);
+    expect(table).toEqual(before);
+  });
+
+  it("応答の時間切れはスルーで、自動になった人の手番も同じ処理の中で進む", () => {
+    const table = ponnable();
+    const east = discardsOf(table, 0).find(
+      (a) => tileOf(a.tile).kind === "1z",
+    )!;
+    const waiting = applyTimed(table, east, ctx(T0 + 1_000)).table;
+    const next = applyTimeout(waiting, ctx(T0 + 16_000)).table;
+    expect(next.clock.auto).toEqual([false, true, false]);
+    expect(next.game.round.melds[1]).toEqual([]);
+    // スルーのあとの席1の手番は、待たずにツモ切りになる
+    expect(next.game.round.rivers[1]).toEqual([
+      expect.objectContaining({ tsumogiri: true }),
+    ]);
+    expect(actionsFor(next, 1)).toEqual([]);
+  });
+
+  it("ポン直後の時間切れは、切れる牌の右端を切る", () => {
+    const table = ponnable();
+    const east = discardsOf(table, 0).find(
+      (a) => tileOf(a.tile).kind === "1z",
+    )!;
+    const waiting = applyTimed(table, east, ctx(T0 + 1_000)).table;
+    const pon = actionsFor(waiting, 1).find((a) => a.type === "pon")!;
+    const called = applyTimed(waiting, pon, ctx(T0 + 2_000)).table;
+    expect(called.game.round.drawn).toBeNull();
+    expect(called.clock.deadline).toBe(T0 + 2_000 + 25_000);
+
+    const choices = discardsOf(called, 1);
+    const next = applyTimeout(called, ctx(T0 + 27_000)).table;
+    expect(next.game.round.rivers[1][0]!.tile).toBe(
+      choices[choices.length - 1]!.tile,
+    );
+    expect(next.clock.auto[1]).toBe(true);
+  });
+
+  it("自動の人がいても、残りの2人の操作だけで次の局まで進む", () => {
+    let table = applyTimeout(start(), ctx(T0 + 35_000)).table;
+    let now = T0 + 36_000;
+    let steps = 0;
+    const sameRound = () =>
+      table.game.phase === "playing" &&
+      table.game.roundIndex === 0 &&
+      table.game.honba === 0;
+    while (sameRound()) {
+      // 自動の席0が待たれることはない
+      expect(actionsFor(table, 0)).toEqual([]);
+      table = advance(table, (now += 1_000));
+      if (++steps > 1_000) throw new Error("局が終わりません");
+    }
+    expect(table.clock.auto).toEqual([true, false, false]);
+    if (table.game.phase === "playing") {
+      expect(table.clock.bank).toEqual([20_000, 20_000, 20_000]);
+    }
+  });
+
+  it("サイコロの指定は20秒。時間切れなら乱数で選び、その人は自動になる", () => {
+    const table = tenhou();
+    const chance = applyTimed(
+      table,
+      { type: "tsumo", seat: 0 },
+      ctx(T0 + 1_000),
+    ).table;
+    expect(chance.game.round.phase).toBe("diceChance");
+    expect(chance.clock.deadline).toBe(T0 + 1_000 + 20_000);
+
+    const now = T0 + 21_000;
+    const next = applyTimeout(
+      chance,
+      ctx(now, () => 3),
+    ).table;
+    expect(next.dice).toHaveLength(1);
+    expect(next.dice[0]!.faces).toEqual(diceFaceChoices()[3]);
+    expect(next.clock.auto).toEqual([true, false, false]);
+    // 自動の人は局の結果を確認済みになる。残りの2人には、演出の長さを足した期限が付く
+    expect(next.confirmed).toEqual([true, false, false]);
+    expect(next.clock.deadline).toBe(
+      now + 15_000 + next.dice[0]!.rolls.length * 2_200,
+    );
+  });
+
+  it("局の結果は15秒で次の局へ進み、誰も自動にならず、持ち時間が戻る", () => {
+    const chance = applyTimed(
+      tenhou(),
+      { type: "tsumo", seat: 0 },
+      ctx(T0 + 1_000),
+    ).table;
+    const result = applyTimed(
+      chance,
+      { type: "dice", seat: 0, faces: [1, 2] },
+      ctx(T0 + 2_000),
+    ).table;
+    const deadline = T0 + 2_000 + 15_000 + result.dice[0]!.rolls.length * 2_200;
+    expect(result.clock.deadline).toBe(deadline);
+
+    // 1人が確認しても期限は変わらない
+    const one = applyTimed(
+      result,
+      { type: "confirm", seat: 1 },
+      ctx(T0 + 3_000),
+    ).table;
+    expect(one.clock.deadline).toBe(deadline);
+    expect(one.clock.savedAt).toBe(T0 + 3_000);
+
+    const spent: TimedTable = {
+      ...one,
+      clock: { ...one.clock, bank: [1, 2, 3] },
+    };
+    const step = applyTimeout(spent, ctx(deadline));
+    expect(step.events.some((event) => event.type === "roundStart")).toBe(true);
+    expect(step.table.game.round.phase).toBe("awaitTurnAction");
+    expect(step.table.confirmed).toEqual([false, false, false]);
+    expect(step.table.clock.auto).toEqual([false, false, false]);
+    expect(step.table.clock.bank).toEqual([20_000, 20_000, 20_000]);
+    expect(step.table.clock.deadline).toBe(deadline + 25_000);
+  });
+});
+
+describe("3人とも自動", () => {
+  function frozen(): TimedTable {
+    const base = start();
+    const table: TimedTable = {
+      ...base,
+      clock: { ...base.clock, auto: [false, true, true] },
+    };
+    return applyTimeout(table, ctx(T0 + 35_000)).table;
+  }
+
+  it("進行を止めて、期限をなくす", () => {
+    const table = frozen();
+    expect(table.clock.auto).toEqual([true, true, true]);
+    expect(table.clock.deadline).toBeNull();
+    expect(table.game.round.rivers[0]).toEqual([]);
+    expect(() => applyTimeout(table, ctx(T0 + 999_000))).toThrow(
+      IllegalActionError,
+    );
+  });
+
+  it("待たれている本人が復帰すると、5秒の期限で再開する", () => {
+    const next = applyTimed(
+      frozen(),
+      { type: "resume", seat: 0 },
+      ctx(T0 + 100_000),
+    ).table;
+    expect(next.clock.auto).toEqual([false, true, true]);
+    expect(next.clock.deadline).toBe(T0 + 100_000 + 5_000);
+    expect(actionsFor(next, 0).length).toBeGreaterThan(0);
+  });
+
+  it("ほかの人が復帰すると、自動の人の番を進めてから期限を付ける", () => {
+    const next = applyTimed(
+      frozen(),
+      { type: "resume", seat: 1 },
+      ctx(T0 + 100_000),
+    ).table;
+    expect(next.clock.auto).toEqual([true, false, true]);
+    expect(next.game.round.rivers[0]).toHaveLength(1);
+    expect(next.clock.deadline).not.toBeNull();
+  });
+
+  it("自動の人が自分で操作しても解除される", () => {
+    const table = frozen();
+    const next = applyTimed(
+      table,
+      discardsOf(table, 0)[0]!,
+      ctx(T0 + 100_000),
+    ).table;
+    expect(next.clock.auto[0]).toBe(false);
+    expect(next.game.round.rivers[0]).toHaveLength(1);
+  });
+});
+
+describe("復帰（resume）", () => {
+  it("自動でない人の復帰は拒否する", () => {
+    expect(() =>
+      applyTimed(start(), { type: "resume", seat: 1 }, ctx(T0 + 1_000)),
+    ).toThrow(IllegalActionError);
+  });
+
+  it("待ちの途中で復帰しても、その待ちの期限は変えない", () => {
+    const base = start();
+    const table: TimedTable = {
+      ...base,
+      clock: { ...base.clock, auto: [false, true, false] },
+    };
+    const next = applyTimed(
+      table,
+      { type: "resume", seat: 1 },
+      ctx(T0 + 1_000),
+    ).table;
+    expect(next.clock.auto).toEqual([false, false, false]);
+    expect(next.clock.deadline).toBe(T0 + 35_000);
+    expect(next.clock.savedAt).toBe(T0 + 1_000);
+  });
+});
