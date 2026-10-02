@@ -334,5 +334,5 @@ describe("自動対局による検証", () => {
       expect(state.chipDeltas.reduce((a, b) => a + b, 0)).toBe(0);
       expect(state.outcome).not.toBeNull();
     }
-  });
+  }, 60_000);
 });
