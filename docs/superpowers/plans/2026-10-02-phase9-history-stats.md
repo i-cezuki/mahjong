@@ -71,7 +71,7 @@
   - `shanten(concealed: readonly TileId[], melds: readonly Meld[]): number`
   - −1 が和了形、0 が聴牌。花牌は数えない。副露（暗槓を含む）があるときは通常形だけ
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `src/engine/shanten.test.ts`:
 
@@ -215,12 +215,12 @@ describe("shanten（乱数で作った手牌）", () => {
 });
 ```
 
-- [ ] **Step 2: テストが失敗することを確かめる**
+- [x] **Step 2: テストが失敗することを確かめる**
 
 Run: `npx vitest run src/engine/shanten.test.ts`
 Expected: FAIL（`./shanten` が見つからない、`HAND_KINDS` が export されていない）
 
-- [ ] **Step 3: 実装する**
+- [x] **Step 3: 実装する**
 
 `src/engine/agari.ts`: `const HAND_KINDS = ...` を `export const HAND_KINDS = ...` に、`function toCounts(` を `export function toCounts(` に変える。`toCounts` の上にコメントを足す:
 
@@ -372,14 +372,14 @@ export function shanten(
 
 `src/engine/index.ts` に `export * from "./shanten";` を足す（`agari` の下）。
 
-- [ ] **Step 4: 通ることを確かめる**
+- [x] **Step 4: 通ることを確かめる**
 
 Run: `npx vitest run src/engine/shanten.test.ts`
 Expected: PASS
 
 手で数えた期待値と合わないテストがあれば、まず手牌の枚数（13枚）と、テストのコメントに書いた面子・塔子・雀頭の数え方を見直す。実装の式（8 − 面子×2 − 塔子 − 雀頭、面子と塔子は合わせて4つまで）は変えない。
 
-- [ ] **Step 5: 全体を確かめてコミット**
+- [x] **Step 5: 全体を確かめてコミット**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
@@ -404,7 +404,7 @@ git commit -m "feat(engine): add a shanten calculator"
 - Produces（`src/engine/agari.ts`）: `completesRyanmen(group: Group, winKind: TileKind): boolean`
 - Produces（`src/engine/waits.ts`）: `isGoodWait(concealed: readonly TileId[], melds: readonly Meld[]): boolean`（聴牌でなければ false）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `src/engine/waits.test.ts`:
 
@@ -455,12 +455,12 @@ describe("isGoodWait（待ちが良形か）", () => {
 });
 ```
 
-- [ ] **Step 2: テストが失敗することを確かめる**
+- [x] **Step 2: テストが失敗することを確かめる**
 
 Run: `npx vitest run src/engine/waits.test.ts`
 Expected: FAIL（`./waits` が見つからない）
 
-- [ ] **Step 3: 実装する**
+- [x] **Step 3: 実装する**
 
 `src/engine/agari.ts` の `decompose` の下に足す:
 
@@ -531,12 +531,12 @@ export function isGoodWait(
 
 `src/engine/index.ts` に `export * from "./waits";` を足す（`shanten` の下）。
 
-- [ ] **Step 4: 通ることを確かめる**
+- [x] **Step 4: 通ることを確かめる**
 
 Run: `npx vitest run src/engine/waits.test.ts src/engine/yaku.test.ts`
 Expected: PASS（役のテストも変わらず通る）
 
-- [ ] **Step 5: 全体を確かめてコミット**
+- [x] **Step 5: 全体を確かめてコミット**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
@@ -568,7 +568,7 @@ git commit -m "feat(engine): classify waits as good or bad shape"
   - `type StatsEvent = GameEvent | { type: "seed"; seed: string }`
   - `analyzeGame(events: readonly StatsEvent[]): PerSeat<GameStats>`（牌譜と手牌が合わなければ例外）
 
-- [ ] **Step 1: 型を書く**
+- [x] **Step 1: 型を書く**
 
 `src/stats/types.ts`:
 
@@ -697,7 +697,7 @@ export function emptyStats(): GameStats {
 }
 ```
 
-- [ ] **Step 2: 失敗するテストを書く**
+- [x] **Step 2: 失敗するテストを書く**
 
 `src/stats/analyze.test.ts`:
 
@@ -965,12 +965,12 @@ describe("analyzeGame（自動対局）", () => {
 });
 ```
 
-- [ ] **Step 3: テストが失敗することを確かめる**
+- [x] **Step 3: テストが失敗することを確かめる**
 
 Run: `npx vitest run src/stats/analyze.test.ts`
 Expected: FAIL（`./analyze` が見つからない）
 
-- [ ] **Step 4: `src/stats/analyze.ts` を書く**
+- [x] **Step 4: `src/stats/analyze.ts` を書く**
 
 ```ts
 import {
@@ -1248,7 +1248,7 @@ export function analyzeGame(events: readonly StatsEvent[]): PerSeat<GameStats> {
 }
 ```
 
-- [ ] **Step 5: 通ることを確かめる**
+- [x] **Step 5: 通ることを確かめる**
 
 Run: `npx vitest run src/stats/analyze.test.ts`
 Expected: PASS
@@ -1259,7 +1259,7 @@ Expected: PASS
 - 自動対局のテストで「牌譜と手牌が合いません」が出たら、手牌の復元（`pon`、`kan`、`flower`）がずれている。`src/engine/round.ts` の該当するイベントの出し方を読んで合わせる。祝儀の内訳が合わないときは、`src/engine/chips.ts` と `settlement.ts` の祝儀の計算を読んで合わせる（テストの期待値は変えない）。
 - 最後の「主な出来事は一通り起きている」が、たまたま起きずに落ちる場合は、対局数（8）を増やす。
 
-- [ ] **Step 6: 全体を確かめてコミット**
+- [x] **Step 6: 全体を確かめてコミット**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
@@ -1294,7 +1294,7 @@ git commit -m "feat(stats): analyse a game record into per-player counters"
   - `formatMetric(format: MetricFormat, value: number | null): string`
 - Produces（`src/lib/datetime.ts`）: `formatJst(iso: string): string`（例: `2026/10/02 21:05`）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `src/stats/summary.test.ts`:
 
@@ -1485,12 +1485,12 @@ describe("formatJst（日本時間の日時）", () => {
 });
 ```
 
-- [ ] **Step 2: テストが失敗することを確かめる**
+- [x] **Step 2: テストが失敗することを確かめる**
 
 Run: `npx vitest run src/stats/summary.test.ts src/stats/metrics.test.ts src/lib/datetime.test.ts`
 Expected: FAIL（モジュールが見つからない）
 
-- [ ] **Step 3: 実装する**
+- [x] **Step 3: 実装する**
 
 `src/stats/summary.ts`:
 
@@ -1896,14 +1896,14 @@ export function formatJst(iso: string): string {
 }
 ```
 
-- [ ] **Step 4: 通ることを確かめる**
+- [x] **Step 4: 通ることを確かめる**
 
 Run: `npx vitest run src/stats src/lib`
 Expected: PASS
 
 「リーチ後放銃率」は `dealInWhileRiichi ÷ riichi` で計算する（`GameStats` に別の項目は持たない）。
 
-- [ ] **Step 5: 全体を確かめてコミット**
+- [x] **Step 5: 全体を確かめてコミット**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
@@ -1931,7 +1931,7 @@ git commit -m "feat(stats): add totals and the list of displayed metrics"
   - `public.games_needing_stats(p_version integer, p_limit integer) returns setof uuid`
   - `game_results` と `game_stats` は承認済みなら全員分を読める
 
-- [ ] **Step 1: DBのテストを書く**
+- [x] **Step 1: DBのテストを書く**
 
 `supabase/tests/database/stats.test.sql`:
 
@@ -2085,12 +2085,12 @@ select is((select count(*)::int from public.game_results), 1, '承認済みな�
 
 （元は `0, '参加していない対局の結果は読めない'`。`plan(37)` は変わらない。）
 
-- [ ] **Step 2: 失敗することを確かめる**
+- [x] **Step 2: 失敗することを確かめる**
 
 Run: `npm run test:db`
 Expected: `stats.test.sql` が FAIL（関数と表がない）、`rls.test.sql` が1件 FAIL
 
-- [ ] **Step 3: マイグレーションを書く**
+- [x] **Step 3: マイグレーションを書く**
 
 `supabase/migrations/20261002030000_game_stats.sql`:
 
@@ -2184,7 +2184,7 @@ grant execute on function public.save_game_stats(uuid, integer, jsonb) to servic
 grant execute on function public.games_needing_stats(integer, integer) to service_role;
 ```
 
-- [ ] **Step 4: 反映して、テストと型を通す**
+- [x] **Step 4: 反映して、テストと型を通す**
 
 ```bash
 npx supabase migration up --local
@@ -2195,7 +2195,7 @@ git diff --stat src/server/database.types.ts
 
 Expected: `test:db` がすべて PASS。`database.types.ts` に `game_stats` の表と2つの関数が増える（ほかの差分がないこと）。
 
-- [ ] **Step 5: 全体を確かめてコミット**
+- [x] **Step 5: 全体を確かめてコミット**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
@@ -2227,7 +2227,7 @@ git commit -m "feat(db): store per-game stats and open results to approved users
   - `loadHistory(limit: number): Promise<{ games: HistoryGame[]; hasMore: boolean }>`
 - Produces（API）: `POST /api/cron` の応答が `{ abandoned: number, stats: { computed: number, failed: number } }` になる
 
-- [ ] **Step 1: 検証スクリプトに確認を足す（まだ失敗する）**
+- [x] **Step 1: 検証スクリプトに確認を足す（まだ失敗する）**
 
 `scripts/play-hanchan.mjs`:
 
@@ -2306,7 +2306,7 @@ if (KEEP) {
 Run（開発サーバーとローカルのSupabaseが動いている状態で）: `npm run test:play`
 Expected: 「終局すると3人分の集計値が保存される」が NG（0）。「参加していない人も結果を読める」は ok（Task 5 で権限を広げたため）。
 
-- [ ] **Step 2: `src/server/stats.ts` を書く**
+- [x] **Step 2: `src/server/stats.ts` を書く**
 
 ```ts
 import "server-only";
@@ -2514,7 +2514,7 @@ export async function loadHistory(
 }
 ```
 
-- [ ] **Step 3: 終局したら、応答のあとに集計する**
+- [x] **Step 3: 終局したら、応答のあとに集計する**
 
 先に `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/after.md` を読む（`after` は応答を返したあとに処理を走らせる）。
 
@@ -2536,7 +2536,7 @@ if (result.view.phase === "ended") {
 }
 ```
 
-- [ ] **Step 4: 定期実行で、未計算の対局を計算する**
+- [x] **Step 4: 定期実行で、未計算の対局を計算する**
 
 `src/app/api/cron/route.ts` を次に置き換える:
 
@@ -2563,7 +2563,7 @@ export async function POST(request: Request) {
 }
 ```
 
-- [ ] **Step 5: 通ることを確かめる**
+- [x] **Step 5: 通ることを確かめる**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
@@ -2580,7 +2580,7 @@ curl -s -X POST -H "Authorization: Bearer local-cron-secret" http://localhost:30
 
 Expected: `{"abandoned":0,"stats":{"computed":N,"failed":0}}`。`N` は、集計値のまだない終局した対局の数（検証スクリプトは最後に片付けるので、ふつうは 0）。`failed` が 0 でなければ、その対局の牌譜で `analyzeGame` が例外を出しているので、原因を調べる。
 
-- [ ] **Step 6: コミット**
+- [x] **Step 6: コミット**
 
 ```bash
 npx prettier --write src/server/stats.ts src/app/api scripts/play-hanchan.mjs
@@ -2602,11 +2602,11 @@ git commit -m "feat(server): compute stats when a game ends and in the daily cro
 - Consumes: Task 6 の `loadStandings`、`loadHistory`、Task 4 の `METRICS`、`METRIC_GROUPS`、`formatMetric`、`formatJst`
 - Produces: `Screen` の prop `wide?: boolean`、ページ `/history`（`?n=<件数>`）、`/stats`、`/stats/<プレイヤーのid>`
 
-- [ ] **Step 1: Next.js のドキュメントを読む**
+- [x] **Step 1: Next.js のドキュメントを読む**
 
 `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/page.md` で、`searchParams` と `params` の受け取り方（どちらも Promise）と `PageProps` の使い方を確かめる。既存の `src/app/games/[id]/page.tsx`（`PageProps<"/games/[id]">`）と同じ書き方にする。
 
-- [ ] **Step 2: `Screen` を横に広げられるようにする**
+- [x] **Step 2: `Screen` を横に広げられるようにする**
 
 `src/components/screen.tsx` の `Screen` を置き換える:
 
@@ -2639,7 +2639,7 @@ export function Screen({
 }
 ```
 
-- [ ] **Step 3: 対局履歴**
+- [x] **Step 3: 対局履歴**
 
 `src/app/history/page.tsx`:
 
@@ -2737,7 +2737,7 @@ export default async function HistoryPage({
 }
 ```
 
-- [ ] **Step 4: 成績の一覧**
+- [x] **Step 4: 成績の一覧**
 
 `src/app/stats/page.tsx`:
 
@@ -2818,7 +2818,7 @@ export default async function StatsPage() {
 }
 ```
 
-- [ ] **Step 5: 個人の成績**
+- [x] **Step 5: 個人の成績**
 
 `src/app/stats/[id]/page.tsx`:
 
@@ -2884,7 +2884,7 @@ export default async function PlayerStatsPage({
 }
 ```
 
-- [ ] **Step 6: ホームからのリンク**
+- [x] **Step 6: ホームからのリンク**
 
 `src/app/page.tsx` の、承認と ログアウトの `<div className="flex items-center gap-4">` の中の最初に足す:
 
@@ -2899,12 +2899,12 @@ export default async function PlayerStatsPage({
 
 その `<div>` の `className` を `"flex flex-wrap items-center gap-4"` にする。
 
-- [ ] **Step 7: 型とテストを通す**
+- [x] **Step 7: 型とテストを通す**
 
 Run: `npm run typecheck && npm run lint && npm run test && npm run build`
 Expected: すべて成功。ビルドの一覧に `/history`、`/stats`、`/stats/[id]` が出る。
 
-- [ ] **Step 8: ブラウザで確かめる**
+- [x] **Step 8: ブラウザで確かめる**
 
 1. 対局を残す: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local scripts/play-hanchan.mjs --keep`（開発サーバーとローカルのSupabaseが動いている状態で）。
 2. 残った検証用のユーザーの1人としてログインした状態を作る。`scripts/play-hanchan.mjs` の `createPlayer` と同じやり方（`signInWithPassword` でセッションCookieを作る）を使う一時的なスクリプトを、スクラッチパッドに書く。メールアドレスは `play-hanchan-0@example.test`、パスワードはスクリプトの `PASSWORD`。
@@ -2918,7 +2918,7 @@ Expected: すべて成功。ビルドの一覧に `/history`、`/stats`、`/stat
 
 崩れている、読みにくいところがあれば直して撮り直す。
 
-- [ ] **Step 9: コミット**
+- [x] **Step 9: コミット**
 
 ```bash
 npx prettier --write src/components/screen.tsx src/app/history src/app/stats src/app/page.tsx
@@ -2934,7 +2934,7 @@ git commit -m "feat(ui): add the game history and player stats pages"
 
 - Modify: `docs/SPEC.md`
 
-- [ ] **Step 1: `docs/SPEC.md` を直す**
+- [x] **Step 1: `docs/SPEC.md` を直す**
 
 「最初のリリースに含めるもの（確定）」の `- 対局履歴、プレイヤー別の通算と日別の集計` を置き換える:
 
@@ -3019,7 +3019,7 @@ git commit -m "feat(ui): add the game history and player stats pages"
   stats/       牌譜の分析、集計値の足し合わせ、画面に出す項目
 ```
 
-- [ ] **Step 2: 全部を通す**
+- [x] **Step 2: 全部を通す**
 
 ```bash
 npx prettier --write docs/SPEC.md
@@ -3031,7 +3031,7 @@ Expected: すべて成功
 開発サーバーとローカルのSupabaseを動かして: `npm run test:play`
 Expected: 「すべて成功」
 
-- [ ] **Step 3: コミット**
+- [x] **Step 3: コミット**
 
 ```bash
 git add docs/SPEC.md
