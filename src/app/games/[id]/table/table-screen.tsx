@@ -144,21 +144,24 @@ function Table({
         />
       </div>
 
-      <div className="absolute top-[34px] left-[244px] w-[180px]">
+      {/* 相手の河は縦に並ぶ。6枚分の高さにそろえ、上家は上から、下家は下から並べる */}
+      <div className="absolute top-[34px] left-[244px] h-[168px] w-[180px]">
         <River
           discards={view.rivers[layout.left]}
           width={28}
           highlight={lastDiscard(layout.left)}
+          facing="left"
         />
       </div>
       <div className="absolute top-[34px] left-[430px] h-[152px] w-[180px]">
         <CenterPanel view={view} layout={layout} />
       </div>
-      <div className="absolute top-[34px] left-[616px] w-[180px]">
+      <div className="absolute top-[34px] left-[616px] h-[168px] w-[180px]">
         <River
           discards={view.rivers[layout.right]}
           width={28}
           highlight={lastDiscard(layout.right)}
+          facing="right"
         />
       </div>
       <div className="absolute top-[192px] left-[436px] w-[180px]">
@@ -166,6 +169,7 @@ function Table({
           discards={view.rivers[layout.self]}
           width={28}
           highlight={lastDiscard(layout.self)}
+          facing="self"
         />
       </div>
 
