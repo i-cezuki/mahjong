@@ -406,27 +406,36 @@ describe("ポン", () => {
     expectNotAllowed(state, { type: "discard", seat: 2, tile: remaining });
   });
 
-  it("最初の手番より前にポンしたら、配牌の花牌はその時点で抜く", () => {
+  it("最初の手番より前にポンしても、配牌の花牌は次のツモ番まで抜かない", () => {
     let state = start({
       hands: [
         "19m147p258s1234z7z",
         "19m258p36s4s23z56z7s",
         "19m369p29s77z123z1f",
       ],
-      live: "4z",
-      rinshan: "9p",
+      live: "4z9p9p9p",
+      rinshan: "8p",
     });
     state = discard(state, "7z");
     state = act(
       state,
       legalActions(state, 2).find((a) => a.type === "pon")!,
     );
-    expect(state.flowers[2]).toHaveLength(1);
+    const flower = find(state, 2, "1f");
+    expect(state.flowers[2]).toEqual([]);
     expect(state.hands[2]).toHaveLength(11);
-    expect(state.hands[2].map((id) => tileOf(id).kind)).not.toContain("1f");
-    // 補充牌はツモ扱いにしない（打牌だけ）
-    expect(state.drawn).toBeNull();
-    expect(types(state, 2)).toEqual(["discard"]);
+
+    // 花牌は切れない
+    expect(legalActions(state, 2)).toHaveLength(10);
+    expectNotAllowed(state, { type: "discard", seat: 2, tile: flower });
+
+    // 次のツモ番で抜いて補充する
+    state = passAll(discard(state, "9s"));
+    expect(state.hands[2]).toContain(flower);
+    state = giri(state, 2);
+    expect(state.turn).toBe(2);
+    expect(state.flowers[2]).toEqual([flower]);
+    expect(tileOf(state.drawn!).kind).toBe("8p");
   });
 
   it("赤や金を含めるかどうかを選べる", () => {

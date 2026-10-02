@@ -408,15 +408,6 @@ describe("ドラ", () => {
     });
   });
 
-  it("祝儀の対象になる裏ドラの枚数は花牌を除いて数える", () => {
-    const options = { riichi: "riichi", flowers: 2 } as const;
-    const hand = [`${TANYAO[0]}5s`, TANYAO[1]] as const;
-    expect(win(...hand, { ...options, ura: "1p" })?.uraChipCount).toBe(1);
-    expect(win(...hand, { ...options, ura: "1f" })?.uraChipCount).toBe(0);
-    expect(win(...hand, { ...options, ura: "1p1f4s" })?.uraChipCount).toBe(3);
-    expect(win(...hand, { flowers: 2, ura: "1p" })?.uraChipCount).toBe(0);
-  });
-
   it("槓ドラは表示牌ごとに数える", () => {
     const result = win(`${TANYAO[0]}5s`, TANYAO[1], { dora: "1p1p" });
     expect(result?.dora.dora).toBe(2);

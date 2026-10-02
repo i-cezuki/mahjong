@@ -120,7 +120,10 @@ function canKan(state: RoundState): boolean {
 
 function discardableTiles(state: RoundState, seat: Seat): TileId[] {
   if (state.riichi[seat]) return state.drawn === null ? [] : [state.drawn];
-  return state.hands[seat].filter((id) => tileOf(id).kind !== state.kuikae);
+  // 最初のツモ番より前にポンした人は配牌の花牌を持ったままなので、花牌は切れない
+  return state.hands[seat].filter(
+    (id) => !isFlower(id) && tileOf(id).kind !== state.kuikae,
+  );
 }
 
 function canTsumo(state: RoundState, seat: Seat): boolean {
@@ -613,9 +616,6 @@ function resolveDiscard(state: RoundState, events: RoundEvent[]): void {
     state.turn = seat;
     state.kuikae = kind;
     events.push({ type: "pon", seat, from: discarder, tiles: [...meld.tiles] });
-    // 最初の手番より前のポンなら、配牌の花牌をここで抜く。補充牌はツモ扱いにしない
-    extractFlowers(state, seat, events);
-    state.drawn = null;
     return;
   }
 

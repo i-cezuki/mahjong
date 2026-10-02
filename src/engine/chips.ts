@@ -24,7 +24,7 @@ export function winChips(params: {
   const chips =
     result.dora.red * RED_CHIPS +
     result.dora.gold * GOLD_CHIPS +
-    result.uraChipCount +
+    result.dora.ura +
     (ippatsu ? IPPATSU_CHIPS : 0) +
     result.yakuman * (tsumo ? YAKUMAN_TSUMO_CHIPS : YAKUMAN_RON_CHIPS);
   return doubleStake ? chips * 2 : chips;

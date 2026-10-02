@@ -10,7 +10,6 @@ function result(
     yaku: [],
     yakuman: 0,
     han: 1,
-    uraChipCount: dora.ura ?? 0,
     ...rest,
     dora: { dora: 0, ura: 0, red: 0, gold: 0, flower: 0, ...dora },
   };
@@ -37,14 +36,12 @@ describe("winChips（支払う1人あたりの祝儀）", () => {
     expect(winChips({ ...ron, result: result({ ura: 3 }) })).toBe(3);
   });
 
-  it("花牌には付かない（裏ドラが花牌に乗った場合も）", () => {
+  it("抜いた花牌そのものには付かない", () => {
     expect(winChips({ ...ron, result: result({ flower: 4 }) })).toBe(0);
-    expect(
-      winChips({
-        ...ron,
-        result: result({ flower: 2, ura: 2 }, { uraChipCount: 0 }),
-      }),
-    ).toBe(0);
+  });
+
+  it("裏ドラ表示牌が花牌で、抜いた花牌に裏ドラが乗れば枚数分付く", () => {
+    expect(winChips({ ...ron, result: result({ flower: 2, ura: 2 }) })).toBe(2);
   });
 
   it("役満はロン20枚、ツモ10枚ずつ", () => {

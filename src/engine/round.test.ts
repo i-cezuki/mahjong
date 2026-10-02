@@ -312,7 +312,8 @@ describe("自動対局による検証", () => {
         expect(state.points.reduce((a, b) => a + b, 0) + state.kyotaku).toBe(
           90000,
         );
-        if (state.phase === "awaitTurnAction") {
+        // ポンの直後（ツモなし）は配牌の花牌が残っていることがある
+        if (state.phase === "awaitTurnAction" && state.drawn !== null) {
           expect(state.hands[state.turn].some(isFlower)).toBe(false);
         }
 

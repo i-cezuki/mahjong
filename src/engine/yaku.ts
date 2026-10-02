@@ -110,8 +110,6 @@ export interface WinResult {
   /** 役とドラの合計。役満のときは13×役満の数。 */
   han: number;
   dora: DoraCount;
-  /** 祝儀の対象になる裏ドラの枚数（花牌に乗った分は含めない） */
-  uraChipCount: number;
 }
 
 const YAKUMAN_HAN = 13;
@@ -372,7 +370,7 @@ function normalYakuOf(shape: Shape, ctx: Context): Yaku[] {
   return result;
 }
 
-function countDora(ctx: Context): { dora: DoraCount; uraChipCount: number } {
+function countDora(ctx: Context): DoraCount {
   const { input, kinds } = ctx;
   const tiles = [
     ...input.concealed,
@@ -382,27 +380,24 @@ function countDora(ctx: Context): { dora: DoraCount; uraChipCount: number } {
   const flower = input.flowers?.length ?? 0;
 
   const countFor = (indicators: readonly TileId[]) => {
-    let inHand = 0;
-    let onFlowers = 0;
+    let total = 0;
     for (const indicator of indicators) {
       const target = doraKind(tileOf(indicator).kind);
-      if (suitOf(target) === "f") onFlowers += flower;
-      else inHand += kinds.filter((kind) => kind === target).length;
+      // 表示牌が花牌なら、抜いた花牌がドラになる
+      total +=
+        suitOf(target) === "f"
+          ? flower
+          : kinds.filter((kind) => kind === target).length;
     }
-    return { inHand, onFlowers };
+    return total;
   };
 
-  const omote = countFor(input.doraIndicators ?? []);
-  const ura = countFor(input.riichi ? (input.uraIndicators ?? []) : []);
   return {
-    dora: {
-      dora: omote.inHand + omote.onFlowers,
-      ura: ura.inHand + ura.onFlowers,
-      red: tiles.filter((tile) => tile.variant === "red").length,
-      gold: tiles.filter((tile) => tile.variant === "gold").length,
-      flower,
-    },
-    uraChipCount: ura.inHand,
+    dora: countFor(input.doraIndicators ?? []),
+    ura: countFor(input.riichi ? (input.uraIndicators ?? []) : []),
+    red: tiles.filter((tile) => tile.variant === "red").length,
+    gold: tiles.filter((tile) => tile.variant === "gold").length,
+    flower,
   };
 }
 
@@ -452,9 +447,9 @@ export function evaluateWin(input: WinInput): WinResult | null {
   }
   if (best === null || best.yaku.length === 0) return null;
 
-  const { dora, uraChipCount } = countDora(ctx);
+  const dora = countDora(ctx);
   if (best.yakuman > 0) {
-    return { ...best, han: sumHan(best.yaku), dora, uraChipCount };
+    return { ...best, han: sumHan(best.yaku), dora };
   }
 
   const doraTotal = dora.dora + dora.ura + dora.red + dora.gold + dora.flower;
@@ -471,9 +466,8 @@ export function evaluateWin(input: WinInput): WinResult | null {
       yakuman: 1,
       han: YAKUMAN_HAN,
       dora,
-      uraChipCount,
     };
   }
 
-  return { ...best, han: sumHan(best.yaku) + doraTotal, dora, uraChipCount };
+  return { ...best, han: sumHan(best.yaku) + doraTotal, dora };
 }
