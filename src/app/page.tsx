@@ -30,7 +30,13 @@ export default async function Home() {
       ) : (
         <RoomEntry />
       )}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
+        <Link href="/history" className={subtleButtonClass}>
+          対局履歴
+        </Link>
+        <Link href="/stats" className={subtleButtonClass}>
+          成績
+        </Link>
         {viewer.isAdmin && (
           <Link href="/admin" className={subtleButtonClass}>
             承認
