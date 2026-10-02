@@ -72,3 +72,23 @@ export function detectCalls(before: PlayerView, after: PlayerView): Call[] {
   }
   return calls;
 }
+
+/**
+ * 前の画面データと比べて、いま手牌から切った（手出しした）相手の席を出す。
+ * ツモ切りと自分の打牌は出さない。局が変わったときも出さない。
+ */
+export function detectTedashi(before: PlayerView, after: PlayerView): Seat[] {
+  if (before.roundIndex !== after.roundIndex || before.honba !== after.honba) {
+    return [];
+  }
+  return SEATS.filter((seat) => {
+    if (seat === after.seat) return false;
+    const river = after.rivers[seat];
+    const last = river[river.length - 1];
+    return (
+      river.length > before.rivers[seat].length &&
+      last !== undefined &&
+      !last.tsumogiri
+    );
+  });
+}

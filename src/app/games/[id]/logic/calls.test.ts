@@ -5,7 +5,7 @@ import { buildDeck, seedOf } from "@/engine/testing";
 import type { DeckSpec } from "@/engine/testing";
 import { buildView, startTable } from "@/server/table";
 import type { PlayerView, TableState } from "@/server/table";
-import { detectCalls, isWinCall } from "./calls";
+import { detectCalls, detectTedashi, isWinCall } from "./calls";
 
 /** 親が席0の局を、牌の並びを決めて始める。操作のたびに席2から見た画面データを返す。 */
 function scenario(deck: DeckSpec) {
@@ -146,5 +146,41 @@ describe("detectCalls（発声の検出）", () => {
     const before = s.view();
     const after = { ...s.cut(0, "7z", true), honba: before.honba + 1 };
     expect(detectCalls(before, after)).toEqual([]);
+  });
+});
+
+describe("detectTedashi（相手の手出しの検出）", () => {
+  const deck: DeckSpec = {
+    hands: ["123456789p 23s 11z", ...OTHERS],
+    live: "7z 1m 9m",
+  };
+
+  it("相手が手牌から切ったら、その席を出す", () => {
+    const s = scenario(deck);
+    const before = s.view();
+    // 席0は中を引いている。手牌の東を切る
+    expect(detectTedashi(before, s.cut(0, "1z"))).toEqual([0]);
+  });
+
+  it("ツモ切りでは出さない", () => {
+    const s = scenario(deck);
+    const before = s.view();
+    expect(detectTedashi(before, s.cut(0, "7z"))).toEqual([]);
+  });
+
+  it("自分（席2）の手出しは出さない", () => {
+    const s = scenario(deck);
+    s.cut(0, "7z");
+    const before = s.cut(1, "1m");
+    // 席2は9萬を引いている。手牌の東を切る
+    expect(detectTedashi(before, s.cut(2, "1z"))).toEqual([]);
+  });
+
+  it("打牌のない更新や、局が変わったときは出さない", () => {
+    const s = scenario(deck);
+    const before = s.view();
+    expect(detectTedashi(before, before)).toEqual([]);
+    const after = { ...s.cut(0, "1z"), honba: before.honba + 1 };
+    expect(detectTedashi(before, after)).toEqual([]);
   });
 });

@@ -18,7 +18,8 @@ import { Opponent } from "./opponent";
 import { River } from "./river";
 import { RoundResult, signed } from "./round-result";
 import { Stage } from "./stage";
-import { useCalls } from "./use-calls";
+import { TedashiBubble } from "./tedashi-bubble";
+import { useCalls, useTedashi } from "./use-calls";
 import { useDicePlayback } from "./use-dice-playback";
 import { useFlowerReveal } from "./use-flower-reveal";
 import { WallPanel } from "./wall";
@@ -77,6 +78,8 @@ function Table({
   const dicePlaying = playback.index !== null;
   // リーチ、鳴き、和了の発声。和了の発声の間は、局の結果を出すのを待つ
   const { calls, resultHeld } = useCalls(view, version);
+  // 相手が手牌から切ったときの「手出し」
+  const tedashi = useTedashi(view, version);
 
   /** 自分が即ツモ切り中 */
   const myAuto = view.auto[view.seat];
@@ -336,6 +339,7 @@ function Table({
           結果に戻る
         </button>
       )}
+      <TedashiBubble seats={tedashi} layout={layout} />
       <CallCutin calls={calls} layout={layout} names={names} />
       {myAuto && view.phase === "playing" && (
         <button
