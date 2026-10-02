@@ -71,15 +71,15 @@ function fastForward(
  * 自分が配牌で聴牌している局を作る。最初のツモで中を切ってリーチでき、
  * 次のツモで `nextDraw` を引く（ポッチなら一発で、本物のサイコロチャンスになる）。
  */
-function tenpaiTable(nextDraw: string): TableState {
+function tenpaiTable(nextDraw: string, firstDraw = "7z"): TableState {
   const seed = randomSeed();
   const deck = buildDeck({
     hands: [
       "123456789p 234s 5s",
-      "19m 147p 258s 12346z",
+      "19m 147p 268s 12346z",
       "19m 258p 147s 12346z",
     ],
-    live: `7z 3p 3s ${nextDraw}`,
+    live: `${firstDraw} 3p 3s ${nextDraw}`,
     dora: "4s",
     ura: "8p",
   });
@@ -145,6 +145,8 @@ export function Sandbox() {
     version: 1,
   }));
   const [fake, setFake] = useState<Fake | null>(null);
+  /** 場面を切り替えた回数。卓を作り直して、前の場面の状態を持ち越さない */
+  const [scene, setScene] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const update = useCallback((change: (table: TableState) => TableState) => {
@@ -202,6 +204,7 @@ export function Sandbox() {
   return (
     <>
       <TableScreen
+        key={scene}
         view={withFake(buildView(table, ME), fake)}
         version={version}
         names={NAMES}
@@ -211,7 +214,7 @@ export function Sandbox() {
         send={send}
         shownDice={0}
       />
-      <div className="fixed top-0 left-[30%] z-50 flex -translate-x-1/2 gap-1 text-[10px] opacity-60 hover:opacity-100">
+      <div className="fixed right-0 bottom-0 z-50 flex gap-1 text-[10px] opacity-60 hover:opacity-100">
         {debug("20手進める", () =>
           update((t) => {
             let n = 0;
@@ -234,18 +237,27 @@ export function Sandbox() {
         })}
         {debug("聴牌", () => {
           setFake(null);
+          setScene((n) => n + 1);
           update(() => tenpaiTable("r5s"));
         })}
         {debug("聴牌（引けない）", () => {
           setFake(null);
+          setScene((n) => n + 1);
           update(() => tenpaiTable("4z"));
+        })}
+        {debug("花牌", () => {
+          setFake(null);
+          setScene((n) => n + 1);
+          update(() => tenpaiTable("1f"));
         })}
         {debug("ポッチ", () => {
           setFake(null);
+          setScene((n) => n + 1);
           update(() => tenpaiTable("o5z"));
         })}
         {debug("最初から", () => {
           setFake(null);
+          setScene((n) => n + 1);
           setState((current) => ({
             table: startTable({ seed: randomSeed() }).table,
             version: current.version + 1,

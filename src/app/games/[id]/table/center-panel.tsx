@@ -3,6 +3,7 @@ import { Tile } from "@/components/tile";
 import type { Seat } from "@/engine";
 import type { PlayerView } from "@/server/table";
 import type { SeatLayout } from "../logic/seats";
+import { doraTiles } from "../logic/wall";
 
 /** 風と持ち点。手番の人は明るくする。リーチ中はリーチ棒を出す。 */
 function Score({ view, seat }: { view: PlayerView; seat: Seat }) {
@@ -36,7 +37,7 @@ function Score({ view, seat }: { view: PlayerView; seat: Seat }) {
   );
 }
 
-/** 卓の中央。局、本場、供託、ドラ表示牌、3人の風と持ち点。 */
+/** 卓の中央。局、本場、供託、ドラ（表示牌の次の牌）、3人の風と持ち点。 */
 export function CenterPanel({
   view,
   layout,
@@ -55,8 +56,9 @@ export function CenterPanel({
       <div className="flex items-center gap-1.5">
         <span className="text-[11px] opacity-70">ドラ</span>
         <span className="flex">
-          {view.doraIndicators.map((tile) => (
-            <Tile key={tile} id={tile} width={24} />
+          {/* 表示牌そのものは山に出している。ここには実際のドラを出す */}
+          {doraTiles(view.doraIndicators).map((tile, i) => (
+            <Tile key={i} id={tile} width={24} />
           ))}
         </span>
       </div>
