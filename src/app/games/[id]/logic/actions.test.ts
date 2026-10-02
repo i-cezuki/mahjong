@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TableAction } from "@/server/table";
-import { autoAction, buildMenu } from "./actions";
+import { autoAction, buildMenu, tsumogiriAction } from "./actions";
 
 const seat = 0;
 const turn: TableAction[] = [
@@ -125,5 +125,25 @@ describe("autoAction", () => {
     it("ロンの応答では何も切らない", () => {
       expect(autoAction(response, off, true)).toBeNull();
     });
+  });
+});
+
+describe("tsumogiriAction", () => {
+  it("ツモ牌を切る操作を返す", () => {
+    expect(tsumogiriAction(turn, 20)).toEqual({
+      type: "discard",
+      seat,
+      tile: 20,
+    });
+  });
+
+  it("ツモ牌がない（ポンの直後）ときは返さない", () => {
+    expect(tsumogiriAction(turn, null)).toBeNull();
+  });
+
+  it("ツモ牌が切れないとき（自分の手番でない、応答待ち）は返さない", () => {
+    expect(tsumogiriAction(turn, 99)).toBeNull();
+    expect(tsumogiriAction(response, 20)).toBeNull();
+    expect(tsumogiriAction([], 20)).toBeNull();
   });
 });

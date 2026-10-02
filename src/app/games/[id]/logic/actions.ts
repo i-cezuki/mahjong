@@ -75,3 +75,16 @@ export function autoAction(
   if (inRiichi && mustDiscard) return actions[0]!;
   return null;
 }
+
+/** ツモ牌をそのまま切る操作。いま切れなければ null。 */
+export function tsumogiriAction(
+  actions: readonly TableAction[],
+  drawn: TileId | null,
+): TableAction | null {
+  if (drawn === null) return null;
+  return (
+    actions.find(
+      (action) => action.type === "discard" && action.tile === drawn,
+    ) ?? null
+  );
+}

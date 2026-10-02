@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Seat, TileId } from "@/engine";
 import type { PlayerView, TableAction } from "@/server/table";
-import { autoAction, buildMenu } from "../logic/actions";
+import { autoAction, buildMenu, tsumogiriAction } from "../logic/actions";
 import type { AutoSettings } from "../logic/actions";
 import { seatLayout } from "../logic/seats";
 import { ActionBar, Toggles } from "./action-bar";
@@ -32,6 +32,9 @@ export interface TableScreenProps {
   /** 画面を開いた時点ですでに届いていたサイコロの結果の数（再生しない分） */
   shownDice: number;
 }
+
+/** 2回のタップをツモ切りとみなす間隔 */
+const DOUBLE_TAP_MS = 350;
 
 const peekButton =
   "h-8 rounded border border-foreground/40 bg-background/90 px-3 text-xs hover:bg-foreground/10";
@@ -94,6 +97,27 @@ function Table({
     const timer = setTimeout(fire, TSUMOGIRI_DELAY_MS);
     return () => clearTimeout(timer);
   }, [view.actions, settings, inRiichi, version, busy, mine.staging, send]);
+
+  // 手牌やボタン以外の場所を素早く2回タップしたら、ツモ牌をそのまま切る。
+  // 卓の外の余白でも効くように、画面全体のタップを見る
+  const canTsumogiri = !busy && !mine.staging && mode === null && !view.outcome;
+  const tsumogiri = canTsumogiri
+    ? tsumogiriAction(view.actions, view.drawn)
+    : null;
+  const lastTap = useRef(-Infinity);
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      const onControl =
+        event.target instanceof Element &&
+        event.target.closest("button, a") !== null;
+      const quick = event.timeStamp - lastTap.current <= DOUBLE_TAP_MS;
+      // ボタンのタップと、ツモ切りに使った2回目のタップは、次の1回目に数えない
+      lastTap.current = onControl || quick ? -Infinity : event.timeStamp;
+      if (!onControl && quick && tsumogiri) send(tsumogiri);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [tsumogiri, send]);
 
   const riichi = mode === "riichi" || mode === "doubleRiichi";
   const pickable =
@@ -201,12 +225,12 @@ function Table({
         />
       </div>
 
-      <div className="absolute top-[354px] left-4 flex items-center gap-3">
+      <div className="absolute top-[340px] left-4 flex items-center gap-3">
         <Toggles settings={settings} onChange={onSettings} />
         <span className="text-xs opacity-70">{chips(layout.self)}</span>
         <Flowers flowers={mine.flowers} width={24} />
       </div>
-      <div className="absolute top-[352px] right-3 flex items-center gap-3">
+      <div className="absolute top-[338px] right-3 flex items-center gap-3">
         {error && (
           <p role="alert" className="text-rose-300">
             {error}
@@ -223,7 +247,7 @@ function Table({
         />
       </div>
 
-      <div className="absolute bottom-2 left-4">
+      <div className="absolute bottom-1 left-4">
         <MyHand
           hand={mine.hand}
           drawn={mine.drawn}
@@ -233,7 +257,7 @@ function Table({
           onTap={tap}
         />
       </div>
-      <div className="absolute right-3 bottom-2">
+      <div className="absolute right-3 bottom-1">
         <Melds melds={view.melds[layout.self]} width={36} />
       </div>
 
@@ -269,7 +293,7 @@ function Table({
         <button
           type="button"
           onClick={() => setPeeking(false)}
-          className={`absolute top-[358px] right-3 ${peekButton}`}
+          className={`absolute top-[344px] right-3 ${peekButton}`}
         >
           結果に戻る
         </button>

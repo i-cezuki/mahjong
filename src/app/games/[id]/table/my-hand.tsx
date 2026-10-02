@@ -2,6 +2,9 @@ import { displayHand } from "@/components/hand-order";
 import { Tile } from "@/components/tile";
 import type { TileId } from "@/engine";
 
+/** 手牌の牌の幅。14枚とツモ牌の間で、卓の幅（1040）のほぼいっぱいに広がる */
+const HAND_TILE_WIDTH = 66;
+
 /** 自分の手牌。ツモ牌は右端に少し離して置く。 */
 export function MyHand({
   hand,
@@ -37,7 +40,7 @@ export function MyHand({
           >
             <Tile
               id={tile}
-              width={54}
+              width={HAND_TILE_WIDTH}
               raised={tile === selected}
               dimmed={dimOthers && !canPick}
             />
