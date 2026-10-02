@@ -135,7 +135,14 @@ async function refresh(player, gameId) {
   accept(player, json.version, json.view);
 }
 
-const stats = { realtime: 0, late: 0, actions: 0, ms: [], realtimeMs: [] };
+const stats = {
+  realtime: 0,
+  late: 0,
+  actions: 0,
+  ticks: 0,
+  ms: [],
+  realtimeMs: [],
+};
 
 function subscribe(player, gameId) {
   return new Promise((resolve, reject) => {
@@ -283,6 +290,25 @@ async function playGame(players, gameId, outsider) {
     });
     check("持っていない牌の打牌は422", foreign.status === 422, foreign.status);
 
+    const tickPath = `/api/games/${gameId}/tick`;
+    const early = await api(turn, "POST", tickPath, { version: turn.version });
+    check("期限前の時間切れの申告は422", early.status === 422, early.status);
+    const outsideTick = await api(outsider, "POST", tickPath, { version: 0 });
+    check(
+      "参加者以外の申告は404",
+      outsideTick.status === 404,
+      outsideTick.status,
+    );
+    const resumeEarly = await api(turn, "POST", path, {
+      version: turn.version,
+      action: { type: "resume" },
+    });
+    check(
+      "自動でない人の復帰は422",
+      resumeEarly.status === 422,
+      resumeEarly.status,
+    );
+
     // 同じ操作を同時に2回送っても、通るのは1回だけ
     const body = { version: turn.version, action };
     const [first, second] = await Promise.all([
@@ -301,13 +327,62 @@ async function playGame(players, gameId, outsider) {
   }
 
   console.log("対局");
+  // 3人目は途中から操作をやめる。残りの2人が時間切れを申告して、最後まで進める
+  const IDLE_AFTER = 30;
+  const idle = players[2];
+  let resumed = false;
   let rounds = 0;
   for (;;) {
     const view = players[0].view;
     if (view.phase === "ended") break;
 
-    const actor = players.find((p) => p.view.actions.length > 0);
-    if (!actor) throw new Error("誰にも可能な操作がありません");
+    // 自動になったら1回だけ復帰して、また操作をやめる
+    if (!resumed && view.auto[idle.view.seat]) {
+      const back = await api(idle, "POST", `/api/games/${gameId}/actions`, {
+        version: idle.version,
+        action: { type: "resume" },
+      });
+      if (back.status === 409) {
+        await refresh(idle, gameId);
+        continue;
+      }
+      check("自動になった人は復帰できる", back.status === 200, back.status);
+      check(
+        "復帰すると自動が外れる",
+        back.json.view.auto[idle.view.seat] === false,
+      );
+      resumed = true;
+      accept(idle, back.json.version, back.json.view);
+      await waitForVersion(players, gameId, back.json.version);
+      continue;
+    }
+
+    const idling = stats.actions >= IDLE_AFTER;
+    const actor = players.find(
+      (p) => p.view.actions.length > 0 && !(idling && p === idle),
+    );
+    if (!actor) {
+      // 操作をやめた人だけが待たれている。期限を待って、ほかの人が時間切れを申告する
+      const waiter = players[0];
+      if (waiter.view.deadline === null) {
+        throw new Error("期限がないのに誰も操作できません");
+      }
+      await sleep(Math.max(0, waiter.view.deadline - Date.now()) + 50);
+      const tick = await api(waiter, "POST", `/api/games/${gameId}/tick`, {
+        version: waiter.version,
+      });
+      if (tick.status === 409 || tick.status === 422) {
+        for (const player of players) await refresh(player, gameId);
+        continue;
+      }
+      if (tick.status !== 200) {
+        throw new Error(`時間切れの申告が拒否されました: ${tick.status}`);
+      }
+      stats.ticks++;
+      accept(waiter, tick.json.version, tick.json.view);
+      await waitForVersion(players, gameId, tick.json.version);
+      continue;
+    }
     const action = pickAction(actor.view.actions, actor.view.hand);
     if (action.type === "confirm" && actor.view.confirmed.every((c) => !c)) {
       rounds++;
@@ -334,6 +409,14 @@ async function playGame(players, gameId, outsider) {
       console.log(`  ${stats.actions} 手、${rounds} 局`);
     }
   }
+
+  console.log("時間切れ");
+  check("時間切れが申告された", stats.ticks > 0, stats.ticks);
+  check(
+    "操作をやめた人は自動のまま終局した",
+    players[0].view.auto[idle.view.seat] === true,
+  );
+  check("復帰を確かめた", resumed);
 
   console.log("Realtimeで届いた内容");
   for (const player of players) {
@@ -474,6 +557,7 @@ async function main() {
   console.log(
     `  操作の応答時間: 中央値 ${at(0.5)}ms、95% ${at(0.95)}ms、最大 ${at(0.999)}ms`,
   );
+  console.log(`  時間切れの申告: ${stats.ticks} 回`);
   const realtime = [...stats.realtimeMs].sort((x, y) => x - y);
   const rt = (q) => Math.round(realtime[Math.floor(realtime.length * q)] ?? 0);
   console.log(

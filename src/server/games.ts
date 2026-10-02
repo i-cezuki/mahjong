@@ -4,14 +4,29 @@ import { randomBytes, randomInt } from "node:crypto";
 import { IllegalActionError, SEATS } from "@/engine";
 import type { PerSeat, Seat } from "@/engine";
 import type { Json } from "./database.types";
+import { applyTimed, applyTimeout, startClock } from "./clock";
+import type { ClockContext, TimedStep } from "./clock";
 import { shuffled } from "./room-rules";
 import { createAdminClient } from "./supabase";
-import { applyTableAction, buildView, parseAction, startTable } from "./table";
+import { buildView, parseAction, startTable } from "./table";
 import type { PlayerView, TableState } from "./table";
 
 /** 局ごとの乱数の種。暗号学的乱数から作る。 */
 function newSeed(): string {
   return randomBytes(32).toString("hex");
+}
+
+/** サーバーの現在時刻。期限はすべてこの時計で決める。 */
+export function serverNow(): number {
+  return Date.now();
+}
+
+function clockContext(): ClockContext {
+  return {
+    now: serverNow(),
+    nextSeed: newSeed,
+    pick: (count) => randomInt(count),
+  };
 }
 
 function toJson(value: unknown): Json {
@@ -42,7 +57,9 @@ export async function startGameForRoom(
     members.map((member) => member.user_id),
     randomInt,
   );
-  const { table, events } = startTable({ seed: newSeed() });
+  const started = startTable({ seed: newSeed() });
+  const table = startClock(started.table, serverNow());
+  const { events } = started;
   const { data: gameId, error: startError } = await admin.rpc("start_game", {
     p_room: roomId,
     p_expected_status: expectedStatus,
@@ -63,24 +80,19 @@ export type SubmitError =
   | "stale"
   /** 操作の形がおかしい */
   | "invalid"
-  /** いまはできない操作 */
+  /** いまはできない操作。期限前の時間切れの申告もこれ */
   | "illegal";
 
 export type SubmitResult =
   | { ok: true; version: number; view: PlayerView }
   | { ok: false; error: SubmitError };
 
-/**
- * 操作を受け付ける。状態の読込、検証、適用、保存を行い、本人の新しい画面データを返す。
- * クライアントが送るのは「何をしたいか」だけで、結果はここで決まる。
- */
-export async function submitAction(params: {
-  gameId: string;
-  userId: string;
-  version: unknown;
-  action: unknown;
-}): Promise<SubmitResult> {
-  const { gameId, userId } = params;
+type Loaded =
+  | { ok: true; seat: Seat; version: number; table: TableState }
+  | { ok: false; error: SubmitError };
+
+/** 対局の状態を読む。参加者以外には、対局があるかどうかも教えない。 */
+async function loadGame(gameId: string, userId: string): Promise<Loaded> {
   const admin = createAdminClient();
   const [game, secret] = await Promise.all([
     admin
@@ -97,25 +109,31 @@ export async function submitAction(params: {
   if (game.error || secret.error) {
     throw new Error("対局を読み込めませんでした");
   }
-  // 参加者以外には、対局があるかどうかも教えない
   const seat = game.data?.player_ids.indexOf(userId) ?? -1;
   if (!game.data || !secret.data || seat < 0) {
     return { ok: false, error: "notFound" };
   }
   if (game.data.status !== "playing") return { ok: false, error: "finished" };
-  if (params.version !== game.data.version) {
-    return { ok: false, error: "stale" };
-  }
+  return {
+    ok: true,
+    seat: seat as Seat,
+    version: game.data.version,
+    table: secret.data.state as unknown as TableState,
+  };
+}
 
-  const action = parseAction(params.action, seat as Seat);
-  if (!action) return { ok: false, error: "invalid" };
-  // resume は時計（clock.ts）が扱う。つなぐまでは受け付けない
-  if (action.type === "resume") return { ok: false, error: "illegal" };
-
-  const before = secret.data.state as unknown as TableState;
+/**
+ * 状態を進めて保存し、本人の新しい画面データを返す。
+ * 進め方（操作か時間切れか）は呼び出す側が渡す。どちらも時計（clock.ts）を通る。
+ */
+async function advance(
+  gameId: string,
+  loaded: Extract<Loaded, { ok: true }>,
+  apply: (ctx: ClockContext) => TimedStep,
+): Promise<SubmitResult> {
   let step;
   try {
-    step = applyTableAction(before, action, newSeed);
+    step = apply(clockContext());
   } catch (error) {
     if (error instanceof IllegalActionError) {
       return { ok: false, error: "illegal" };
@@ -135,9 +153,9 @@ export async function submitAction(params: {
       chips: result.chips[s],
     }));
 
-  const { data: saved, error } = await admin.rpc("save_game", {
+  const { data: saved, error } = await createAdminClient().rpc("save_game", {
     p_game: gameId,
-    p_expected_version: game.data.version,
+    p_expected_version: loaded.version,
     p_state: toJson(table),
     p_views: toJson(views),
     p_events: toJson(events),
@@ -147,5 +165,43 @@ export async function submitAction(params: {
   // 読み込んでから保存するまでの間に、ほかの操作が先に保存された
   if (!saved) return { ok: false, error: "stale" };
 
-  return { ok: true, version: game.data.version + 1, view: views[seat]! };
+  return { ok: true, version: loaded.version + 1, view: views[loaded.seat] };
+}
+
+/**
+ * 操作を受け付ける。状態の読込、検証、適用、保存を行い、本人の新しい画面データを返す。
+ * クライアントが送るのは「何をしたいか」だけで、結果はここで決まる。
+ */
+export async function submitAction(params: {
+  gameId: string;
+  userId: string;
+  version: unknown;
+  action: unknown;
+}): Promise<SubmitResult> {
+  const loaded = await loadGame(params.gameId, params.userId);
+  if (!loaded.ok) return loaded;
+  if (params.version !== loaded.version) return { ok: false, error: "stale" };
+
+  const action = parseAction(params.action, loaded.seat);
+  if (!action) return { ok: false, error: "invalid" };
+  return advance(params.gameId, loaded, (ctx) =>
+    applyTimed(loaded.table, action, ctx),
+  );
+}
+
+/**
+ * 時間切れの申告を受け付ける。参加者なら誰でも送れる。
+ * 期限はサーバーの時計で確かめるので、申告で早く進めることはできない（期限前は illegal）。
+ */
+export async function submitTick(params: {
+  gameId: string;
+  userId: string;
+  version: unknown;
+}): Promise<SubmitResult> {
+  const loaded = await loadGame(params.gameId, params.userId);
+  if (!loaded.ok) return loaded;
+  if (params.version !== loaded.version) return { ok: false, error: "stale" };
+  return advance(params.gameId, loaded, (ctx) =>
+    applyTimeout(loaded.table, ctx),
+  );
 }
