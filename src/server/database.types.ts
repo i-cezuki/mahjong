@@ -320,6 +320,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      abandon_stale_games: { Args: { p_user?: string }; Returns: number };
       active_room_of: { Args: { p_user: string }; Returns: string };
       create_room: { Args: { p_code: string; p_user: string }; Returns: Json };
       is_approved: { Args: Record<PropertyKey, never>; Returns: boolean };

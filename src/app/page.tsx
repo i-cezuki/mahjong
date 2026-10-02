@@ -3,10 +3,13 @@ import { signOut } from "@/app/actions";
 import { RoomEntry } from "@/app/room-entry";
 import { Screen, buttonClass, subtleButtonClass } from "@/components/screen";
 import { requireApproved } from "@/server/auth";
+import { abandonStaleGames } from "@/server/games";
 import { getActiveRoomCode } from "@/server/room-queries";
 
 export default async function Home() {
   const viewer = await requireApproved();
+  // 放置された対局に閉じ込められないよう、ここで破棄する
+  await abandonStaleGames(viewer.id).catch(() => 0);
   const activeCode = await getActiveRoomCode(viewer.id);
 
   return (

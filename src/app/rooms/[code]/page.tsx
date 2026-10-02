@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { RoomEntry } from "@/app/room-entry";
 import { Screen, subtleButtonClass } from "@/components/screen";
 import { requireApproved } from "@/server/auth";
+import { abandonStaleGames } from "@/server/games";
 import { getRoomDetail } from "@/server/room-queries";
 import { parseRoomCode } from "@/server/room-rules";
 import { startIfFull } from "@/server/rooms";
@@ -13,6 +14,7 @@ export default async function RoomPage({ params }: PageProps<"/rooms/[code]">) {
   const code = parseRoomCode((await params).code);
   if (!code) notFound();
 
+  await abandonStaleGames(viewer.id).catch(() => 0);
   let room = await getRoomDetail(code);
   // メンバーでなければルームは見えない。URLを受け取った人が参加できるよう、コードを入れた状態で出す。
   if (!room) {

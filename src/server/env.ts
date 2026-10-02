@@ -25,4 +25,8 @@ export const env = {
   get adminEmail() {
     return required("ADMIN_EMAIL", process.env.ADMIN_EMAIL);
   },
+  /** 定期実行（GitHub Actions）の秘密の値。設定していなければ null で、定期実行は受け付けない。 */
+  get cronSecret(): string | null {
+    return process.env.CRON_SECRET || null;
+  },
 };

@@ -205,3 +205,16 @@ export async function submitTick(params: {
     applyTimeout(loaded.table, ctx),
   );
 }
+
+/**
+ * 対局中のまま10分進んでいない対局を破棄する。破棄した数を返す。
+ * @param userId 渡すと、その人が参加している対局だけを対象にする。
+ */
+export async function abandonStaleGames(userId?: string): Promise<number> {
+  const { data, error } = await createAdminClient().rpc(
+    "abandon_stale_games",
+    userId ? { p_user: userId } : {},
+  );
+  if (error) throw new Error("放置された対局を破棄できませんでした");
+  return data ?? 0;
+}

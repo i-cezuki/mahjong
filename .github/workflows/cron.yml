@@ -1,0 +1,25 @@
+# 1日1回、本番の /api/cron を呼ぶ。放置された対局を破棄し、Supabase の一時停止（1週間アクセスなし）を防ぐ。
+# Secrets に CRON_SECRET、Variables に APP_URL（例: https://example.vercel.app）を登録しておく。
+# リポジトリに60日間動きがないと、GitHub は定期実行を止める。止まったら Actions の画面から有効に戻す。
+name: cron
+
+on:
+  schedule:
+    # 毎日 03:17（日本時間）
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/cron
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron"
