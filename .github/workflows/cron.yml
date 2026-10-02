@@ -20,6 +20,13 @@ jobs:
         env:
           APP_URL: ${{ vars.APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        # --fail は 400 以上しか失敗にしない。保護されたURLへのリダイレクト（302）も失敗にするため、200 だけを成功とする
         run: |
-          curl --fail-with-body --silent --show-error --max-time 60 \
-            -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron"
+          status=$(curl --silent --show-error --max-time 60 --output response.txt --write-out '%{http_code}' \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron")
+          cat response.txt
+          echo
+          if [ "$status" != "200" ]; then
+            echo "::error::/api/cron returned HTTP $status"
+            exit 1
+          fi
