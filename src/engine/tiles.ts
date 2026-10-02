@@ -93,3 +93,35 @@ export function sortTiles(ids: readonly TileId[]): TileId[] {
   const order = (id: TileId) => KIND_ORDER.get(tileOf(id).kind) ?? 0;
   return [...ids].sort((a, b) => order(a) - order(b) || a - b);
 }
+
+export type Suit = "m" | "p" | "s" | "z" | "f";
+
+export function suitOf(kind: TileKind): Suit {
+  return kind[1] as Suit;
+}
+
+export function rankOf(kind: TileKind): number {
+  return Number(kind[0]);
+}
+
+export function isHonor(kind: TileKind): boolean {
+  return suitOf(kind) === "z";
+}
+
+/** 老頭牌（数牌の1と9） */
+export function isTerminal(kind: TileKind): boolean {
+  const suit = suitOf(kind);
+  const rank = rankOf(kind);
+  return (
+    (suit === "m" || suit === "p" || suit === "s") && (rank === 1 || rank === 9)
+  );
+}
+
+/** 么九牌（老頭牌と字牌） */
+export function isYaochu(kind: TileKind): boolean {
+  return isHonor(kind) || isTerminal(kind);
+}
+
+export function kindsOf(ids: readonly TileId[]): TileKind[] {
+  return ids.map((id) => tileOf(id).kind);
+}

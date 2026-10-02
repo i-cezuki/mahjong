@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { ALL_TILES, doraKind, isFlower, sortTiles, tileOf } from "./tiles";
+import {
+  ALL_TILES,
+  doraKind,
+  isFlower,
+  isHonor,
+  isTerminal,
+  isYaochu,
+  rankOf,
+  sortTiles,
+  suitOf,
+  tileOf,
+} from "./tiles";
 import type { TileKind } from "./tiles";
 
 function countBy(predicate: (kind: TileKind) => boolean): number {
@@ -126,5 +137,26 @@ describe("並べ替え", () => {
     const ids = [50, 3, 20];
     sortTiles(ids);
     expect(ids).toEqual([50, 3, 20]);
+  });
+});
+
+describe("牌の分類", () => {
+  it("suitOf と rankOf", () => {
+    expect(suitOf("7p")).toBe("p");
+    expect(rankOf("7p")).toBe(7);
+    expect(suitOf("5z")).toBe("z");
+  });
+
+  it("字牌、老頭牌、么九牌", () => {
+    expect(isHonor("1z")).toBe(true);
+    expect(isHonor("1m")).toBe(false);
+    expect(isTerminal("1m")).toBe(true);
+    expect(isTerminal("9s")).toBe(true);
+    expect(isTerminal("5p")).toBe(false);
+    expect(isTerminal("1z")).toBe(false);
+    expect(isYaochu("7z")).toBe(true);
+    expect(isYaochu("9p")).toBe(true);
+    expect(isYaochu("2s")).toBe(false);
+    expect(isYaochu("1f")).toBe(false);
   });
 });
