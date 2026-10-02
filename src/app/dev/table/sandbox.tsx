@@ -236,6 +236,10 @@ export function Sandbox() {
           setFake(null);
           update(() => tenpaiTable("r5s"));
         })}
+        {debug("聴牌（引けない）", () => {
+          setFake(null);
+          update(() => tenpaiTable("4z"));
+        })}
         {debug("ポッチ", () => {
           setFake(null);
           update(() => tenpaiTable("o5z"));

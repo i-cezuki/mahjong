@@ -31,6 +31,9 @@ export interface TableScreenProps {
   shownDice: number;
 }
 
+/** リーチ後のツモ切りまでの間。引いた牌を見せるために待つ。 */
+const TSUMOGIRI_DELAY_MS = 700;
+
 /** 版番号と一緒に覚えておき、画面データが更新されたら無かったことにする値 */
 interface Pinned<T> {
   version: number;
@@ -64,16 +67,26 @@ function Table({
   /** 局の結果を閉じて卓を見ている */
   const [peeking, setPeeking] = useState(false);
 
-  // 自動和了と鳴きなし。同じ版番号には1回しか送らない
+  // 自動和了、鳴きなし、リーチ後のツモ切り。同じ版番号には1回しか送らない
+  const inRiichi = view.riichi[view.seat] !== null;
   const autoSent = useRef(-1);
   useEffect(() => {
     // 前の操作の応答を待っている間は送れないので、返ってきてから送る
     if (busy) return;
-    const action = autoAction(view.actions, settings);
+    const action = autoAction(view.actions, settings, inRiichi);
     if (!action || autoSent.current === version) return;
-    autoSent.current = version;
-    send(action);
-  }, [view.actions, settings, version, busy, send]);
+    const fire = () => {
+      autoSent.current = version;
+      send(action);
+    };
+    if (action.type !== "discard") {
+      fire();
+      return;
+    }
+    // ツモ切りは、引いた牌が見えるように少し待ってから切る
+    const timer = setTimeout(fire, TSUMOGIRI_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [view.actions, settings, inRiichi, version, busy, send]);
 
   const riichi = mode === "riichi" || mode === "doubleRiichi";
   const pickable = riichi ? menu.riichiTiles : menu.discards;

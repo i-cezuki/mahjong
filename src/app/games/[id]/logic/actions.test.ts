@@ -53,27 +53,68 @@ describe("autoAction", () => {
   const off = { autoWin: false, noCall: false };
 
   it("どちらも切ってあれば何も送らない", () => {
-    expect(autoAction(turn, off)).toBeNull();
-    expect(autoAction(response, off)).toBeNull();
+    expect(autoAction(turn, off, false)).toBeNull();
+    expect(autoAction(response, off, false)).toBeNull();
   });
 
   it("自動和了はツモとロンを送る", () => {
     const on = { autoWin: true, noCall: false };
-    expect(autoAction(turn, on)).toEqual({ type: "tsumo", seat });
-    expect(autoAction(response, on)).toEqual({ type: "ron", seat });
+    expect(autoAction(turn, on, false)).toEqual({ type: "tsumo", seat });
+    expect(autoAction(response, on, false)).toEqual({ type: "ron", seat });
   });
 
   it("鳴きなしはポンと大明槓だけの応答をスキップする", () => {
     const on = { autoWin: false, noCall: true };
     const callOnly = response.filter((a) => a.type !== "ron");
-    expect(autoAction(callOnly, on)).toEqual({ type: "pass", seat });
+    expect(autoAction(callOnly, on, false)).toEqual({ type: "pass", seat });
   });
 
   it("鳴きなしでもロンができるときは止まる", () => {
-    expect(autoAction(response, { autoWin: false, noCall: true })).toBeNull();
+    expect(
+      autoAction(response, { autoWin: false, noCall: true }, false),
+    ).toBeNull();
   });
 
   it("鳴きなしは自分の手番の暗槓や加槓には関係しない", () => {
-    expect(autoAction(turn, { autoWin: false, noCall: true })).toBeNull();
+    expect(
+      autoAction(turn, { autoWin: false, noCall: true }, false),
+    ).toBeNull();
+  });
+
+  describe("リーチ後", () => {
+    const off = { autoWin: false, noCall: false };
+    const drawOnly: TableAction[] = [{ type: "discard", seat, tile: 50 }];
+
+    it("和了牌でなければツモ切りする", () => {
+      expect(autoAction(drawOnly, off, true)).toEqual(drawOnly[0]);
+    });
+
+    it("和了牌を引いたら止まる", () => {
+      const winning: TableAction[] = [{ type: "tsumo", seat }, ...drawOnly];
+      expect(autoAction(winning, off, true)).toBeNull();
+    });
+
+    it("和了牌を引いて自動和了が入っていればツモを送る", () => {
+      const winning: TableAction[] = [{ type: "tsumo", seat }, ...drawOnly];
+      expect(
+        autoAction(winning, { autoWin: true, noCall: false }, true),
+      ).toEqual({ type: "tsumo", seat });
+    });
+
+    it("暗槓ができるときは止まる", () => {
+      const withKan: TableAction[] = [
+        ...drawOnly,
+        { type: "ankan", seat, kind: "3p" },
+      ];
+      expect(autoAction(withKan, off, true)).toBeNull();
+    });
+
+    it("リーチしていなければ、切れる牌が1枚でもツモ切りしない", () => {
+      expect(autoAction(drawOnly, off, false)).toBeNull();
+    });
+
+    it("ロンの応答では何も切らない", () => {
+      expect(autoAction(response, off, true)).toBeNull();
+    });
   });
 });

@@ -47,15 +47,24 @@ export interface AutoSettings {
   noCall: boolean;
 }
 
-/** 切り替えボタンの設定に従って自動で送る操作。なければ null。 */
+/**
+ * 自動で送る操作。なければ null。
+ * 切り替えボタンの設定のほかに、リーチ後は和了牌以外をツモ切りする。
+ * @param inRiichi 自分がリーチしている
+ */
 export function autoAction(
   actions: readonly TableAction[],
   settings: AutoSettings,
+  inRiichi: boolean,
 ): TableAction | null {
   const menu = buildMenu(actions);
   const win = menu.tsumo ?? menu.ron;
   if (settings.autoWin && win) return win;
   // ロンができるときは本人に選ばせる
   if (settings.noCall && menu.pass && !menu.ron) return menu.pass;
+  // リーチ後に切れるのはツモ牌だけ。和了や暗槓を選べるときは本人に任せる
+  const [drawn] = menu.discards;
+  const mustDiscard = actions.length === 1 && drawn !== undefined;
+  if (inRiichi && mustDiscard) return actions[0]!;
   return null;
 }
