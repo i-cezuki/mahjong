@@ -1,15 +1,17 @@
 import { TileBack } from "@/components/tile";
-import type { MeldState, TileId } from "@/engine";
+import type { MeldState, Seat, TileId } from "@/engine";
 import { Flowers, Melds } from "./melds";
 
 /** 相手の席。外側に裏向きの手牌、内側に抜いた花牌と副露を置く。 */
 export function Opponent({
   side,
+  seat,
   handCount,
   melds,
   flowers,
 }: {
   side: "left" | "right";
+  seat: Seat;
   handCount: number;
   melds: readonly MeldState[];
   flowers: readonly TileId[];
@@ -26,6 +28,7 @@ export function Opponent({
         <Flowers flowers={flowers} width={24} />
         <Melds
           melds={melds}
+          seat={seat}
           width={24}
           className={`flex-col ${right ? "items-end" : ""}`}
         />

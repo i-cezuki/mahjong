@@ -1,32 +1,26 @@
 import { Tile, TileBack } from "@/components/tile";
-import type { MeldState, TileId } from "@/engine";
+import type { MeldState, Seat, TileId } from "@/engine";
+import { meldTiles } from "../logic/melds";
 
-/**
- * 副露1つ。鳴いた牌を横向きにする。
- * 牌の並びはエンジンが決めている：ポンは [手牌, 手牌, 鳴いた牌]、
- * 大明槓は [手牌×3, 鳴いた牌]、加槓は [手牌, 手牌, 鳴いた牌, 加えた牌]。
- */
-function Meld({ meld, width }: { meld: MeldState; width: number }) {
-  if (meld.type === "ankan") {
-    // 暗槓は両端を裏向きにする
-    return (
-      <span className="flex items-end">
-        {meld.tiles.map((tile, i) =>
-          i === 0 || i === 3 ? (
-            <TileBack key={tile} width={width} />
-          ) : (
-            <Tile key={tile} id={tile} width={width} />
-          ),
-        )}
-      </span>
-    );
-  }
-  const firstCalled = meld.type === "minkan" ? 3 : 2;
+/** 副露1つ。鳴いた牌は横向きにして、鳴いた相手の側に置く（並べ方は logic/melds.ts）。 */
+function Meld({
+  meld,
+  seat,
+  width,
+}: {
+  meld: MeldState;
+  seat: Seat;
+  width: number;
+}) {
   return (
     <span className="flex items-end">
-      {meld.tiles.map((tile, i) => (
-        <Tile key={tile} id={tile} width={width} sideways={i >= firstCalled} />
-      ))}
+      {meldTiles(meld, seat).map(({ tile, sideways, back }) =>
+        back ? (
+          <TileBack key={tile} width={width} />
+        ) : (
+          <Tile key={tile} id={tile} width={width} sideways={sideways} />
+        ),
+      )}
     </span>
   );
 }
@@ -34,17 +28,20 @@ function Meld({ meld, width }: { meld: MeldState; width: number }) {
 /** 副露の並び */
 export function Melds({
   melds,
+  seat,
   width,
   className = "",
 }: {
   melds: readonly MeldState[];
+  /** 鳴いた人の席。鳴いた牌を置く側を決めるのに使う */
+  seat: Seat;
   width: number;
   className?: string;
 }) {
   return (
     <div className={`flex gap-1.5 ${className}`}>
       {melds.map((meld) => (
-        <Meld key={meld.tiles[0]} meld={meld} width={width} />
+        <Meld key={meld.tiles[0]} meld={meld} seat={seat} width={width} />
       ))}
     </div>
   );

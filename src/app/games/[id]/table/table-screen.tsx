@@ -219,6 +219,7 @@ function Table({
       <div className="absolute top-[44px] left-3 h-[310px] w-[224px]">
         <Opponent
           side="left"
+          seat={layout.left}
           handCount={view.handCounts[layout.left]}
           melds={view.melds[layout.left]}
           flowers={view.flowers[layout.left]}
@@ -227,6 +228,7 @@ function Table({
       <div className="absolute top-[44px] right-3 h-[310px] w-[224px]">
         <Opponent
           side="right"
+          seat={layout.right}
           handCount={view.handCounts[layout.right]}
           melds={view.melds[layout.right]}
           flowers={view.flowers[layout.right]}
@@ -296,7 +298,7 @@ function Table({
         />
       </div>
       <div className="absolute right-3 bottom-1">
-        <Melds melds={view.melds[layout.self]} width={36} />
+        <Melds melds={view.melds[layout.self]} seat={layout.self} width={36} />
       </div>
 
       {view.outcome && !peeking && !resultHeld && (

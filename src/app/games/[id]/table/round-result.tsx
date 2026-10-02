@@ -49,7 +49,7 @@ function Hand({
           ))}
       </span>
       {winTile !== null && <Tile id={winTile} width={30} />}
-      <Melds melds={view.melds[seat]} width={26} />
+      <Melds melds={view.melds[seat]} seat={seat} width={26} />
     </div>
   );
 }
