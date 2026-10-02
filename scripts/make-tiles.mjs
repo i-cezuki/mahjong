@@ -3,7 +3,7 @@
 //   node scripts/make-tiles.mjs
 //
 // 素材は麻雀王国の麻雀素材「牌画2」（https://mj-king.net/sozai/）。47×63px のGIF。
-// 素材に無い牌（赤5、金5、ポッチ、逆ポッチ、花牌）は、素材を加工して3倍の大きさのPNGで作る。
+// 表示では3倍のPNGを使う。素材に無い牌（赤5、金5、ポッチ、逆ポッチ、花牌）も加工して作る。
 // sharp は next に付属しているものを使う。
 
 import { existsSync } from "node:fs";
@@ -43,6 +43,17 @@ async function download(kind) {
   console.log(`取得 ${path}`);
 }
 
+/** 通常牌を表示用に大きくし、線を少し締めたPNGにする。 */
+async function renderNormal(kind) {
+  const path = `${OUT}/${kind}.png`;
+  await sharp(`${OUT}/${kind}.gif`)
+    .resize(47 * SCALE, 63 * SCALE, { kernel: "lanczos3" })
+    .sharpen({ sigma: 0.7, m1: 1.1, m2: 1.8 })
+    .png()
+    .toFile(path);
+  console.log(`生成 ${path}`);
+}
+
 /**
  * 絵柄を1色に塗り替える。牌の面は白なので、白からの暗さをインクの濃さとみなし、
  * その濃さで白と指定の色を混ぜる。縁の影は塗り替えない。
@@ -59,7 +70,7 @@ async function recolor(kind, suffix, [tr, tg, tb]) {
       const i = (y * width + x) * channels;
       // 素材の線は真っ黒ではないので、少し濃くして色をはっきりさせる
       const dark = 1 - Math.min(data[i], data[i + 1], data[i + 2]) / 255;
-      const ink = Math.min(1, dark * 1.5);
+      const ink = Math.min(1, dark * 1.8);
       data[i] = Math.round(255 + (tr - 255) * ink);
       data[i + 1] = Math.round(255 + (tg - 255) * ink);
       data[i + 2] = Math.round(255 + (tb - 255) * ink);
@@ -90,6 +101,7 @@ async function overlay(name, svgBody) {
 
 await mkdir(OUT, { recursive: true });
 for (const kind of Object.keys(NAMES)) await download(kind);
+for (const kind of Object.keys(NAMES)) await renderNormal(kind);
 
 const RED = [200, 16, 46];
 const GOLD = [178, 130, 0];

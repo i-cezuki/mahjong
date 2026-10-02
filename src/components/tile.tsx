@@ -70,15 +70,17 @@ export function Tile({
       rotation={rotation}
       className={`transition-transform duration-100 ${raised ? "-translate-y-2.5" : ""} ${dimmed ? "opacity-40" : ""}`}
     >
-      <Image
-        src={tileImage(id)}
-        alt={tileLabel(id)}
-        width={width}
-        height={height}
-        unoptimized
-        draggable={false}
-        className="block h-full w-full select-none"
-      />
+      <span className="block h-full w-full rounded-[5px] bg-[#fffaf0] shadow-[0_1px_0_rgba(255,255,255,0.75)_inset,0_3px_7px_rgba(0,0,0,0.32)] ring-1 ring-slate-950/25">
+        <Image
+          src={tileImage(id)}
+          alt={tileLabel(id)}
+          width={width}
+          height={height}
+          unoptimized
+          draggable={false}
+          className="block h-full w-full select-none rounded-[5px] contrast-125 saturate-125"
+        />
+      </span>
     </TileBox>
   );
 }
@@ -91,7 +93,7 @@ export function TileBack({
 }: BoxProps) {
   return (
     <TileBox width={width} rotation={rotation}>
-      <span className="block h-full w-full rounded-[3px] border border-sky-300/70 bg-[#1f4fbf]" />
+      <span className="block h-full w-full rounded-[5px] border border-sky-200/80 bg-[#2259cf] shadow-[0_1px_0_rgba(255,255,255,0.35)_inset,0_3px_7px_rgba(0,0,0,0.3)] ring-1 ring-slate-950/25" />
     </TileBox>
   );
 }
