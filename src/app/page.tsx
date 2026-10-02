@@ -1,17 +1,32 @@
 import Link from "next/link";
 import { signOut } from "@/app/actions";
-import { Screen, subtleButtonClass } from "@/components/screen";
+import { RoomEntry } from "@/app/room-entry";
+import { Screen, buttonClass, subtleButtonClass } from "@/components/screen";
 import { requireApproved } from "@/server/auth";
+import { getActiveRoomCode } from "@/server/room-queries";
 
 export default async function Home() {
   const viewer = await requireApproved();
+  const activeCode = await getActiveRoomCode(viewer.id);
 
   return (
     <Screen title="3人麻雀">
       <p className="text-sm opacity-80">
         {viewer.displayName} さん、ようこそ。
       </p>
-      <p className="text-sm opacity-60">ルームの作成と参加は準備中です。</p>
+      {activeCode ? (
+        <>
+          <p className="text-sm opacity-80">参加中のルームがあります。</p>
+          <Link
+            href={`/rooms/${activeCode}`}
+            className={`${buttonClass} text-center`}
+          >
+            ルーム {activeCode} に戻る
+          </Link>
+        </>
+      ) : (
+        <RoomEntry />
+      )}
       <div className="flex items-center gap-4">
         {viewer.isAdmin && (
           <Link href="/admin" className={subtleButtonClass}>
