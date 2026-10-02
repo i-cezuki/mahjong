@@ -72,7 +72,7 @@
   - `PlayerView` に `deadline: number | null`、`serverNow: number`、`bank: number`、`auto: PerSeat<boolean>`。`actions` は `PlayAction[]`
   - `parseAction` が `{ type: "resume" }` を受け付ける
 
-- [ ] **Step 1: 定数のファイルを作る**
+- [x] **Step 1: 定数のファイルを作る**
 
 `src/lib/timing.ts`:
 
@@ -102,7 +102,7 @@ export const DICE_STEP_MS = DICE_ROLL_MS + DICE_SHOW_MS;
 
 `src/app/games/[id]/table/use-dice-playback.ts` の `ROLL_MS` と `SHOW_MS` の定義（コメントごと）を消し、`import { DICE_ROLL_MS, DICE_SHOW_MS } from "@/lib/timing";` を足して、`position.rolling ? ROLL_MS : SHOW_MS` を `position.rolling ? DICE_ROLL_MS : DICE_SHOW_MS` に変える。
 
-- [ ] **Step 2: 失敗するテストを書く**
+- [x] **Step 2: 失敗するテストを書く**
 
 `src/server/table.test.ts` の `VIEW_KEYS` を次に置き換える（4つ増える）:
 
@@ -224,12 +224,12 @@ it("復帰（resume）を受け付ける", () => {
 });
 ```
 
-- [ ] **Step 3: テストが失敗することを確かめる**
+- [x] **Step 3: テストが失敗することを確かめる**
 
 Run: `npx vitest run src/server/table.test.ts`
 Expected: FAIL（`VIEW_KEYS` の不一致、`view.deadline` が `undefined`、`table.clock` が `undefined`、`resume` が `null`）
 
-- [ ] **Step 4: `src/server/table.ts` を直す**
+- [x] **Step 4: `src/server/table.ts` を直す**
 
 `TableState` の前に足し、`TableState` に `clock` を足す:
 
@@ -314,7 +314,7 @@ export function actionsFor(table: TableState, seat: Seat): PlayAction[] {
 
 `parseAction` の最初の `case` の並びに `case "resume":` を足す（`confirm` の下）。
 
-- [ ] **Step 5: 型が通るように呼び出し側を合わせる**
+- [x] **Step 5: 型が通るように呼び出し側を合わせる**
 
 `src/server/games.ts` の `if (!action) return { ok: false, error: "invalid" };` の下に足す（Task 3 で消す）:
 
@@ -330,12 +330,12 @@ if (action.type === "resume") return { ok: false, error: "illegal" };
 - `step` を `function step(table: TableState, action: PlayAction): TableState` にする。
 - `send` の `if (action.type === "confirm") setFake(null);` の上に `if (action.type === "resume") return;` を足す。
 
-- [ ] **Step 6: 通ることを確かめる**
+- [x] **Step 6: 通ることを確かめる**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
 
-- [ ] **Step 7: コミット**
+- [x] **Step 7: コミット**
 
 ```bash
 npx prettier --write src/lib/timing.ts src/server/table.ts src/server/table.test.ts src/server/games.ts src/app/dev/table/sandbox.tsx "src/app/games/[id]/table/use-dice-playback.ts"
@@ -362,7 +362,7 @@ git commit -m "feat(server): add clock fields to the table state and player view
   - `applyTimed(table: TableState, action: TableAction, ctx: ClockContext): TimedStep`（不正な操作は `IllegalActionError`）
   - `applyTimeout(table: TableState, ctx: ClockContext): TimedStep`（期限前、期限なしは `IllegalActionError`）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `src/server/clock.test.ts`:
 
@@ -746,12 +746,12 @@ describe("復帰（resume）", () => {
 });
 ```
 
-- [ ] **Step 2: テストが失敗することを確かめる**
+- [x] **Step 2: テストが失敗することを確かめる**
 
 Run: `npx vitest run src/server/clock.test.ts`
 Expected: FAIL（`./clock` が見つからない）
 
-- [ ] **Step 3: `src/server/clock.ts` を書く**
+- [x] **Step 3: `src/server/clock.ts` を書く**
 
 ```ts
 import { IllegalActionError, SEATS } from "@/engine";
@@ -1010,7 +1010,7 @@ export function applyTimeout(input: TableState, ctx: ClockContext): TimedStep {
 }
 ```
 
-- [ ] **Step 4: 通ることを確かめる**
+- [x] **Step 4: 通ることを確かめる**
 
 Run: `npx vitest run src/server/clock.test.ts`
 Expected: PASS（全件）
@@ -1021,7 +1021,7 @@ Expected: PASS（全件）
 - 「次の局まで進む」のテストで種1の局にポッチやサイコロチャンスが挟まっても、`advance` は `actions[0]` で進める。1000手で終わらない場合だけ、`start(2)` など別の種に変える。
 - `tsconfig.json` は `exactOptionalPropertyTypes` と `noUncheckedIndexedAccess` が有効。`clock: undefined` のような書き方は型エラーになるので、上のコードのとおりに書く。
 
-- [ ] **Step 5: 全体を確かめてコミット**
+- [x] **Step 5: 全体を確かめてコミット**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
@@ -1050,7 +1050,7 @@ git commit -m "feat(server): add turn clocks, timeouts and automatic play"
   - `serverNow(): number`
 - Produces（API）: `POST /api/games/:id/tick`、本文 `{ version }`、成功は `{ version, view }`。期限前は 422 `illegal`、版番号が古い・対局が終わっているは 409（`stale`、`finished`）、参加者でないは 404
 
-- [ ] **Step 1: 検証スクリプトに時間切れの確認を足す（まだ失敗する）**
+- [x] **Step 1: 検証スクリプトに時間切れの確認を足す（まだ失敗する）**
 
 `scripts/play-hanchan.mjs`:
 
@@ -1154,7 +1154,7 @@ check("復帰を確かめた", resumed);
 console.log(`  時間切れの申告: ${stats.ticks} 回`);
 ```
 
-- [ ] **Step 2: 失敗することを確かめる**
+- [x] **Step 2: 失敗することを確かめる**
 
 ローカルのSupabaseと開発サーバーを起動してから実行する（別の端末、またはバックグラウンド）:
 
@@ -1166,7 +1166,7 @@ npm run test:play
 
 Expected: 「期限前の時間切れの申告は422」が NG（`/tick` がまだないので 404）。そのあと `view.auto` がなくて例外で止まる。
 
-- [ ] **Step 3: `src/server/games.ts` を書き換える**
+- [x] **Step 3: `src/server/games.ts` を書き換える**
 
 import を直す（`applyTableAction` は使わなくなる）:
 
@@ -1329,7 +1329,7 @@ export async function submitTick(params: {
 
 `SubmitError` の `illegal` のコメントを `/** いまはできない操作。期限前の時間切れの申告もこれ */` にする。Task 1 で足した一時的な `resume` の2行は、置き換えで消えていることを確かめる。
 
-- [ ] **Step 4: `/tick` のルートを作る**
+- [x] **Step 4: `/tick` のルートを作る**
 
 先に `node_modules/next/dist/docs/01-app/` でルートハンドラーのページを読み、`RouteContext` の使い方が `actions/route.ts` と同じであることを確かめる。
 
@@ -1380,7 +1380,7 @@ export async function POST(
 }
 ```
 
-- [ ] **Step 5: 通ることを確かめる**
+- [x] **Step 5: 通ることを確かめる**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
@@ -1388,7 +1388,7 @@ Expected: すべて PASS
 Run（開発サーバーとローカルのSupabaseが動いている状態で）: `npm run test:play`
 Expected: 最後に「すべて成功」。「時間切れの申告」が1回以上。途中で最長35秒ほど止まるのは、操作をやめた人の期限を待っているため。
 
-- [ ] **Step 6: コミット**
+- [x] **Step 6: コミット**
 
 ```bash
 npx prettier --write src/server/games.ts "src/app/api/games/[id]/tick/route.ts" scripts/play-hanchan.mjs
@@ -1413,7 +1413,7 @@ git commit -m "feat(api): enforce clocks on the server and accept timeout report
 - Produces（`src/server/env.ts`）: `env.cronSecret: string | null`
 - Produces（API）: `POST /api/cron`、ヘッダー `Authorization: Bearer <CRON_SECRET>`、成功は `{ abandoned: number }`、違えば 401
 
-- [ ] **Step 1: DBのテストを書く**
+- [x] **Step 1: DBのテストを書く**
 
 `supabase/tests/database/abandon.test.sql`:
 
@@ -1487,12 +1487,12 @@ select * from finish();
 rollback;
 ```
 
-- [ ] **Step 2: 失敗することを確かめる**
+- [x] **Step 2: 失敗することを確かめる**
 
 Run: `npm run test:db`
 Expected: `abandon.test.sql` が FAIL（`function public.abandon_stale_games() does not exist`）
 
-- [ ] **Step 3: マイグレーションを書く**
+- [x] **Step 3: マイグレーションを書く**
 
 `supabase/migrations/20261002020000_abandon_stale_games.sql`:
 
@@ -1532,7 +1532,7 @@ revoke all on function public.abandon_stale_games(uuid) from public, anon, authe
 grant execute on function public.abandon_stale_games(uuid) to service_role;
 ```
 
-- [ ] **Step 4: DBに反映して、テストと型を通す**
+- [x] **Step 4: DBに反映して、テストと型を通す**
 
 ```bash
 npm run db:reset
@@ -1542,7 +1542,7 @@ npm run db:types
 
 Expected: `test:db` がすべて PASS。`src/server/database.types.ts` の `Functions` に `abandon_stale_games: { Args: { p_user?: string }; Returns: number }` が増える（差分がそれだけであることを `git diff src/server/database.types.ts` で確かめる）。
 
-- [ ] **Step 5: 秘密の値の照合のテストを書く**
+- [x] **Step 5: 秘密の値の照合のテストを書く**
 
 `src/server/cron-rules.test.ts`:
 
@@ -1573,7 +1573,7 @@ describe("isCronAuthorized（定期実行の秘密の値）", () => {
 Run: `npx vitest run src/server/cron-rules.test.ts`
 Expected: FAIL（`./cron-rules` が見つからない）
 
-- [ ] **Step 6: 照合、環境変数、破棄の呼び出し、ルートを書く**
+- [x] **Step 6: 照合、環境変数、破棄の呼び出し、ルートを書く**
 
 `src/server/cron-rules.ts`:
 
@@ -1651,7 +1651,7 @@ export async function POST(request: Request) {
 }
 ```
 
-- [ ] **Step 7: ページを開いたときに破棄する。破棄された対局を案内する**
+- [x] **Step 7: ページを開いたときに破棄する。破棄された対局を案内する**
 
 破棄に失敗してもページは出したいので、ページでは `.catch(() => 0)` を付ける。
 
@@ -1691,7 +1691,7 @@ if (game.data.status === "abandoned") {
 }
 ```
 
-- [ ] **Step 8: 定期実行のワークフローを書く**
+- [x] **Step 8: 定期実行のワークフローを書く**
 
 `.github/workflows/cron.yml`:
 
@@ -1723,7 +1723,7 @@ jobs:
             -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron"
 ```
 
-- [ ] **Step 9: 通ることを確かめる**
+- [x] **Step 9: 通ることを確かめる**
 
 Run: `npm run typecheck && npm run lint && npm run test && npm run test:db`
 Expected: すべて PASS
@@ -1737,7 +1737,7 @@ curl -s -X POST -H "Authorization: Bearer local-cron-secret" http://localhost:30
 
 Expected: 1つ目は `401`、2つ目は `{"abandoned":0}`
 
-- [ ] **Step 10: コミット**
+- [x] **Step 10: コミット**
 
 ```bash
 npx prettier --write src/server src/app/api/cron src/app/page.tsx "src/app/rooms/[code]/page.tsx" "src/app/games/[id]/page.tsx" .github/workflows/cron.yml
@@ -1767,7 +1767,7 @@ git commit -m "feat: abandon games left idle for ten minutes and add a daily cro
   - `useTick(params: { deadline: number | null; version: number; seat: Seat; serverTime: () => number; tick: () => Promise<void> }): void`
 - Produces: `TableScreenProps.serverTime: () => number`、`GameClient` の prop `renderedAt: number`
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `src/app/games/[id]/logic/clock.test.ts`:
 
@@ -1859,7 +1859,7 @@ describe("tickDelayMs（申告までの間）", () => {
 Run: `npx vitest run "src/app/games/[id]/logic/clock.test.ts"`
 Expected: FAIL（`./clock` が見つからない）
 
-- [ ] **Step 2: `logic/clock.ts` を書く**
+- [x] **Step 2: `logic/clock.ts` を書く**
 
 ```ts
 import type { Seat } from "@/engine";
@@ -1917,7 +1917,7 @@ export function tickDelayMs(seat: Seat): number {
 Run: `npx vitest run "src/app/games/[id]/logic/clock.test.ts"`
 Expected: PASS
 
-- [ ] **Step 3: `use-clock.ts` を書く**
+- [x] **Step 3: `use-clock.ts` を書く**
 
 `src/app/games/[id]/use-clock.ts`:
 
@@ -1984,7 +1984,7 @@ export function useTick(params: {
 }
 ```
 
-- [ ] **Step 4: `use-game-view.ts` で項目を補う**
+- [x] **Step 4: `use-game-view.ts` で項目を補う**
 
 `import { withClockFields } from "./logic/clock";` を足す。
 
@@ -2010,7 +2010,7 @@ const accept = useCallback((next: Snapshot) => {
 }, []);
 ```
 
-- [ ] **Step 5: `game-client.tsx` で申告を送り、終わった対局への操作では読み込み直す**
+- [x] **Step 5: `game-client.tsx` で申告を送り、終わった対局への操作では読み込み直す**
 
 import に `import { useServerTime, useTick } from "./use-clock";` を足す。props に `renderedAt: number` を足す（型にも）。
 
@@ -2076,7 +2076,7 @@ useTick({
 
 `src/app/games/[id]/page.tsx`: `import { abandonStaleGames, serverNow } from "@/server/games";` にし、`<GameClient ...>` に `renderedAt={serverNow()}` を足す。
 
-- [ ] **Step 6: 残り時間の部品を作る**
+- [x] **Step 6: 残り時間の部品を作る**
 
 `src/app/games/[id]/table/clock-badge.tsx`:
 
@@ -2126,7 +2126,7 @@ export function ClockBadge({
 }
 ```
 
-- [ ] **Step 7: `table-screen.tsx` に組み込む**
+- [x] **Step 7: `table-screen.tsx` に組み込む**
 
 `TableScreenProps` に足す:
 
@@ -2204,14 +2204,14 @@ const clock =
 
 `src/app/dev/table/sandbox.tsx` の `<TableScreen ...>` に `serverTime={Date.now}` を足す（Task 6 でそのまま使う）。
 
-- [ ] **Step 8: 通ることを確かめる**
+- [x] **Step 8: 通ることを確かめる**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
 
 lint が `use-clock.ts` や `clock-badge.tsx` の effect で怒る場合は、既存の `use-game-view.ts`（effect の中で ref を書く、`setInterval` を張る）と同じ形になっているかを見直す。ルールを無効にするコメントは足さない。
 
-- [ ] **Step 9: コミット**
+- [x] **Step 9: コミット**
 
 ```bash
 npx prettier --write "src/app/games/[id]" src/app/dev/table/sandbox.tsx
@@ -2231,7 +2231,7 @@ git commit -m "feat(ui): show the remaining time, report timeouts and resume fro
 
 - Consumes: Task 2 の `startClock`、`applyTimed`、`applyTimeout`、`ClockContext`、Task 5 の `TableScreenProps.serverTime`
 
-- [ ] **Step 1: `sandbox.tsx` を時計つきにする**
+- [x] **Step 1: `sandbox.tsx` を時計つきにする**
 
 import を直す:
 
@@ -2328,12 +2328,12 @@ useEffect(() => {
 }
 ```
 
-- [ ] **Step 2: 型とテストを通す**
+- [x] **Step 2: 型とテストを通す**
 
 Run: `npm run typecheck && npm run lint && npm run test`
 Expected: すべて PASS
 
-- [ ] **Step 3: ブラウザで確かめる**
+- [x] **Step 3: ブラウザで確かめる**
 
 `npm run dev` を動かして `http://localhost:3000/dev/table` を 844×390 で開く（Playwright の MCP でよい）。次を確かめ、それぞれスクリーンショットを撮る。
 
@@ -2346,7 +2346,7 @@ Expected: すべて PASS
 
 位置が重なる、読みにくいなどがあれば、`table-screen.tsx` の位置の指定（`right-[100px] bottom-3` など）を直して撮り直す。
 
-- [ ] **Step 4: コミット**
+- [x] **Step 4: コミット**
 
 ```bash
 npx prettier --write src/app/dev/table/sandbox.tsx "src/app/games/[id]/table"
@@ -2362,7 +2362,7 @@ git commit -m "feat(dev): run the clock in the sandbox table"
 
 - Modify: `docs/SPEC.md`
 
-- [ ] **Step 1: `docs/SPEC.md` を直す**
+- [x] **Step 1: `docs/SPEC.md` を直す**
 
 「持ち時間の実現（提案）」の3つの箇条書きを、次に置き換える:
 
@@ -2419,7 +2419,7 @@ APIの表に2行足す:
 
 「Database Schema」の関数の一覧（`create_room`、…、`save_game`）に `abandon_stale_games` を足し、`game_secrets.state` の説明に「持ち時間の状態（`clock`）」を足す。
 
-- [ ] **Step 2: 全部を通す**
+- [x] **Step 2: 全部を通す**
 
 ```bash
 npx prettier --write docs/SPEC.md
@@ -2431,7 +2431,7 @@ Expected: すべて成功
 開発サーバーとローカルのSupabaseを動かして: `npm run test:play`
 Expected: 「すべて成功」
 
-- [ ] **Step 3: 実際の対局画面をブラウザで確かめる**
+- [x] **Step 3: 実際の対局画面をブラウザで確かめる**
 
 `/dev/table` はエンジンをブラウザで動かすので、通信を通した確認にはならない。ローカルで実際の対局を1つ作って確かめる。
 
@@ -2444,7 +2444,7 @@ Expected: 「すべて成功」
 
 確かめられなかった項目があれば、何を確かめていないかを報告に書く。
 
-- [ ] **Step 4: コミット**
+- [x] **Step 4: コミット**
 
 ```bash
 git add docs/SPEC.md
