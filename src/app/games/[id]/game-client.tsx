@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { displayHand } from "@/components/hand-order";
 import {
   YAKU_LABELS,
   kindLabel,
@@ -270,7 +271,7 @@ export function GameClient({
       <section className="flex flex-col gap-2">
         <h2 className="font-medium">自分の手牌</h2>
         <div className="flex flex-wrap gap-1">
-          {view.hand.map((tile) => {
+          {displayHand(view.hand, view.drawn).map((tile) => {
             const action = discards.find(
               (a) => a.type === "discard" && a.tile === tile,
             );
