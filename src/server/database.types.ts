@@ -134,6 +134,45 @@ export type Database = {
           },
         ];
       };
+      game_stats: {
+        Row: {
+          created_at: string;
+          game_id: string;
+          player_id: string;
+          stats: NonNullable<Json>;
+          version: number;
+        };
+        Insert: {
+          created_at?: string;
+          game_id: string;
+          player_id: string;
+          stats: NonNullable<Json>;
+          version: number;
+        };
+        Update: {
+          created_at?: string;
+          game_id?: string;
+          player_id?: string;
+          stats?: NonNullable<Json>;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_stats_game_id_fkey";
+            columns: ["game_id"];
+            isOneToOne: false;
+            referencedRelation: "games";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "game_stats_player_id_fkey";
+            columns: ["player_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       game_views: {
         Row: {
           game_id: string;
@@ -323,6 +362,10 @@ export type Database = {
       abandon_stale_games: { Args: { p_user?: string }; Returns: number };
       active_room_of: { Args: { p_user: string }; Returns: string };
       create_room: { Args: { p_code: string; p_user: string }; Returns: Json };
+      games_needing_stats: {
+        Args: { p_limit: number; p_version: number };
+        Returns: string[];
+      };
       is_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_game_player: {
         Args: { finished_only?: boolean; target_game: string };
@@ -344,6 +387,10 @@ export type Database = {
           p_state: Json;
           p_views: Json;
         };
+        Returns: boolean;
+      };
+      save_game_stats: {
+        Args: { p_game: string; p_stats: Json; p_version: number };
         Returns: boolean;
       };
       set_rematch_ready: {

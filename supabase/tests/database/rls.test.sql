@@ -138,7 +138,7 @@ select throws_ok(
   $$ select count(*) from public.game_secrets $$,
   '42501', null, '部外者は game_secrets を読めない'
 );
-select is((select count(*)::int from public.game_results), 0, '参加していない対局の結果は読めない');
+select is((select count(*)::int from public.game_results), 1, '承認済みなら、参加していない対局の結果も読める');
 
 -- ---- 未承認（eve）----
 select pg_temp.login('00000000-0000-0000-0000-00000000000e');
