@@ -3,6 +3,7 @@ export * from "./rng";
 export * from "./wall";
 export * from "./round";
 export * from "./agari";
+export * from "./shanten";
 export * from "./yaku";
 export * from "./score";
 export * from "./chips";

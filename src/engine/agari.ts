@@ -21,11 +21,12 @@ export interface Decomposition {
 }
 
 /** 和了形の判定に使う種類（花牌以外）。 */
-const HAND_KINDS = TILE_KINDS.filter((kind) => suitOf(kind) !== "f");
+export const HAND_KINDS = TILE_KINDS.filter((kind) => suitOf(kind) !== "f");
 const KIND_INDEX = new Map(HAND_KINDS.map((kind, index) => [kind, index]));
 const YAOCHU_KINDS = HAND_KINDS.filter(isYaochu);
 
-function toCounts(kinds: readonly TileKind[]): number[] {
+/** HAND_KINDS の並びで、種類ごとの枚数を数える。花牌は数えない。 */
+export function toCounts(kinds: readonly TileKind[]): number[] {
   const counts = new Array<number>(HAND_KINDS.length).fill(0);
   for (const kind of kinds) {
     const index = KIND_INDEX.get(kind);
