@@ -1,7 +1,7 @@
 -- RLSのテスト。npm run test:db で実行する。
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(37);
 
 -- ---- 準備（postgres 権限で直接書き込む）----
 -- alice, bob, carol は承認済みで同じ対局の参加者。dave は承認済みの部外者。eve は未承認。
@@ -104,6 +104,19 @@ select throws_ok(
 select throws_ok(
   $$ update public.games set version = 99 $$,
   '42501', null, '対局は書き換えられない'
+);
+
+select throws_ok(
+  $$ select public.create_room('00000000-0000-0000-0000-00000000000a', 'ZZZ999') $$,
+  '42501', null, 'ルームを作る関数は直接呼べない'
+);
+select throws_ok(
+  $$ select public.join_room('00000000-0000-0000-0000-00000000000a', 'ABC234') $$,
+  '42501', null, '参加する関数は直接呼べない'
+);
+select throws_ok(
+  $$ select public.save_game('20000000-0000-0000-0000-000000000001', 0, '{}', '[{},{},{}]', '[]') $$,
+  '42501', null, '対局を保存する関数は直接呼べない'
 );
 
 -- ---- 別の参加者（bob）----

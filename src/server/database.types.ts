@@ -320,12 +320,46 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      active_room_of: { Args: { p_user: string }; Returns: string };
+      create_room: { Args: { p_code: string; p_user: string }; Returns: Json };
       is_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_game_player: {
         Args: { finished_only?: boolean; target_game: string };
         Returns: boolean;
       };
       is_room_member: { Args: { target_room: string }; Returns: boolean };
+      join_room: { Args: { p_code: string; p_user: string }; Returns: Json };
+      leave_room: {
+        Args: { p_room: string; p_user: string };
+        Returns: boolean;
+      };
+      lock_approved_profile: { Args: { p_user: string }; Returns: boolean };
+      save_game: {
+        Args: {
+          p_events: Json;
+          p_expected_version: number;
+          p_game: string;
+          p_results?: Json;
+          p_state: Json;
+          p_views: Json;
+        };
+        Returns: boolean;
+      };
+      set_rematch_ready: {
+        Args: { p_room: string; p_user: string };
+        Returns: Json;
+      };
+      start_game: {
+        Args: {
+          p_events: Json;
+          p_expected_status: string;
+          p_player_ids: string[];
+          p_room: string;
+          p_state: Json;
+          p_views: Json;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never;
