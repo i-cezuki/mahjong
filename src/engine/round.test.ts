@@ -8,27 +8,9 @@ import {
   startRoundFromDeck,
 } from "./round";
 import type { RoundEvent, RoundState, Seat } from "./round";
-import { deckWithSwaps, range, seedOf } from "./testing";
+import { deckWithSwaps, range, seedOf, tilesInRound } from "./testing";
 import { isFlower } from "./tiles";
 import { SEATS } from "./wall";
-import type { TileId } from "./tiles";
-
-function allTiles(state: RoundState): TileId[] {
-  return [
-    ...state.hands.flat(),
-    ...state.flowers.flat(),
-    ...state.melds.flat().flatMap((meld) => meld.tiles),
-    // 鳴かれた牌は副露の側で数える
-    ...state.rivers
-      .flat()
-      .filter((discard) => !discard.called)
-      .map((discard) => discard.tile),
-    ...state.wall.live,
-    ...state.wall.rinshan,
-    ...state.wall.doraIndicators,
-    ...state.wall.uraIndicators,
-  ].sort((a, b) => a - b);
-}
 
 /** 手番の人がツモ切りし、他家は全員スルーする。 */
 function tsumogiri(state: RoundState): {
@@ -96,7 +78,7 @@ describe("局の開始", () => {
 
   it("種から山を作る。同じ種なら同じ局、違う種なら違う局", () => {
     const a = startRound({ seed: seedOf(1), dealer: 0 });
-    expect(allTiles(a.state)).toEqual(range(0, 112));
+    expect(tilesInRound(a.state)).toEqual(range(0, 112));
     expect(startRound({ seed: seedOf(1), dealer: 0 })).toEqual(a);
     expect(startRound({ seed: seedOf(2), dealer: 0 }).state).not.toEqual(
       a.state,
@@ -326,7 +308,7 @@ describe("自動対局による検証", () => {
       let steps = 0;
 
       while (state.phase !== "ended") {
-        expect(allTiles(state)).toEqual(range(0, 112));
+        expect(tilesInRound(state)).toEqual(range(0, 112));
         expect(state.points.reduce((a, b) => a + b, 0) + state.kyotaku).toBe(
           90000,
         );
@@ -343,7 +325,7 @@ describe("自動対局による検証", () => {
         expect(++steps).toBeLessThan(1000);
       }
 
-      expect(allTiles(state)).toEqual(range(0, 112));
+      expect(tilesInRound(state)).toEqual(range(0, 112));
       expect(state.points.reduce((a, b) => a + b, 0) + state.kyotaku).toBe(
         90000,
       );

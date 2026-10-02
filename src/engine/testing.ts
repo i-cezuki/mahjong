@@ -1,3 +1,4 @@
+import type { RoundState } from "./state";
 import { ALL_TILES, TILE_COUNT } from "./tiles";
 import type { TileId, TileVariant } from "./tiles";
 
@@ -121,4 +122,22 @@ export function buildDeck(spec: DeckSpec): TileId[] {
     if (deck[position] === undefined) deck[position] = rest.shift();
   }
   return deck as TileId[];
+}
+
+/** 局の中にある全部の牌をid順に返す。112枚そろっていれば 0〜111 になる。 */
+export function tilesInRound(state: RoundState): TileId[] {
+  return [
+    ...state.hands.flat(),
+    ...state.flowers.flat(),
+    ...state.melds.flat().flatMap((meld) => meld.tiles),
+    // 鳴かれた牌は副露の側で数える
+    ...state.rivers
+      .flat()
+      .filter((discard) => !discard.called)
+      .map((discard) => discard.tile),
+    ...state.wall.live,
+    ...state.wall.rinshan,
+    ...state.wall.doraIndicators,
+    ...state.wall.uraIndicators,
+  ].sort((a, b) => a - b);
 }

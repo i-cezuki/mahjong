@@ -198,7 +198,7 @@ export interface Step {
 }
 
 export type IllegalActionCode =
-  "roundEnded" | "notYourTurn" | "tileNotInHand" | "notAllowed";
+  "roundEnded" | "notYourTurn" | "tileNotInHand" | "notAllowed" | "gameEnded";
 
 export class IllegalActionError extends Error {
   constructor(readonly code: IllegalActionCode) {

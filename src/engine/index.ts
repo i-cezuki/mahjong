@@ -7,3 +7,6 @@ export * from "./yaku";
 export * from "./score";
 export * from "./chips";
 export * from "./payout";
+export * from "./dice";
+export * from "./settlement";
+export * from "./game";
