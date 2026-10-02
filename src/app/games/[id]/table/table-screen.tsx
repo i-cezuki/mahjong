@@ -9,6 +9,7 @@ import { seatLayout } from "../logic/seats";
 import { ActionBar, Toggles } from "./action-bar";
 import type { PickMode } from "./action-bar";
 import { CenterPanel } from "./center-panel";
+import { ClockBadge } from "./clock-badge";
 import { GameResult } from "./game-result";
 import { Flowers, Melds } from "./melds";
 import { MyHand } from "./my-hand";
@@ -31,6 +32,8 @@ export interface TableScreenProps {
   send: (action: TableAction) => void;
   /** 画面を開いた時点ですでに届いていたサイコロの結果の数（再生しない分） */
   shownDice: number;
+  /** サーバーの現在時刻の見積もり。残り時間の表示に使う */
+  serverTime: () => number;
 }
 
 /** 2回のタップをツモ切りとみなす間隔 */
@@ -57,6 +60,7 @@ function Table({
   error,
   send,
   shownDice,
+  serverTime,
   settings,
   onSettings,
 }: TableScreenProps & {
@@ -70,6 +74,18 @@ function Table({
   const playback = useDicePlayback(view.dice, shownDice);
   const dicePlaying = playback.index !== null;
 
+  /** 自分が即ツモ切り中 */
+  const myAuto = view.auto[view.seat];
+  // 自分が待たれているときだけ、残り時間を出す
+  const clock =
+    view.deadline !== null && view.actions.length > 0 && !myAuto ? (
+      <ClockBadge
+        deadline={view.deadline}
+        bank={view.roundPhase === "awaitTurnAction" ? view.bank : null}
+        serverTime={serverTime}
+      />
+    ) : null;
+
   const [pinnedTile, setPinnedTile] = useState<Pinned<TileId> | null>(null);
   const [pinnedMode, setPinnedMode] = useState<Pinned<PickMode> | null>(null);
   const selected = pinnedTile?.version === version ? pinnedTile.value : null;
@@ -81,8 +97,8 @@ function Table({
   const inRiichi = view.riichi[view.seat] !== null;
   const autoSent = useRef(-1);
   useEffect(() => {
-    // 前の操作の応答を待っている間は送れないので、返ってきてから送る
-    if (busy || mine.staging) return;
+    // 前の操作の応答を待っている間は送れないので、返ってきてから送る。即ツモ切り中は、本人が復帰するまで送らない
+    if (busy || mine.staging || myAuto) return;
     const action = autoAction(view.actions, settings, inRiichi);
     if (!action || autoSent.current === version) return;
     const fire = () => {
@@ -96,7 +112,16 @@ function Table({
     // ツモ切りは、引いた牌が見えるように少し待ってから切る
     const timer = setTimeout(fire, TSUMOGIRI_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [view.actions, settings, inRiichi, version, busy, mine.staging, send]);
+  }, [
+    view.actions,
+    settings,
+    inRiichi,
+    version,
+    busy,
+    mine.staging,
+    myAuto,
+    send,
+  ]);
 
   // 手牌やボタン以外の場所を素早く2回タップしたら、ツモ牌をそのまま切る。
   // 卓の外の余白でも効くように、画面全体のタップを見る
@@ -158,6 +183,11 @@ function Table({
       }`}
     >
       <span className="max-w-[150px] truncate">{names[seat]}</span>
+      {view.auto[seat] && (
+        <span className="shrink-0 rounded bg-amber-400/90 px-1 text-[10px] font-semibold text-black">
+          自動
+        </span>
+      )}
       <span className="shrink-0 text-xs opacity-70">{chips(seat)}</span>
     </span>
   );
@@ -237,6 +267,7 @@ function Table({
           </p>
         )}
         {waiting && <p className="opacity-50">ほかの人を待っています</p>}
+        {!view.outcome && clock}
         <ActionBar
           menu={menu}
           hand={view.hand}
@@ -279,6 +310,9 @@ function Table({
                 roomCode={roomCode}
               />
             )}
+            {clock && (
+              <div className="absolute right-[100px] bottom-3">{clock}</div>
+            )}
             <button
               type="button"
               onClick={() => setPeeking(true)}
@@ -296,6 +330,16 @@ function Table({
           className={`absolute top-[344px] right-3 ${peekButton}`}
         >
           結果に戻る
+        </button>
+      )}
+      {myAuto && view.phase === "playing" && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => send({ type: "resume", seat: view.seat })}
+          className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 text-xl font-semibold"
+        >
+          自動ツモ切り中　タップで復帰
         </button>
       )}
     </div>

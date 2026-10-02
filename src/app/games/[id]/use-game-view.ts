@@ -7,6 +7,7 @@ import {
   watchUpdates,
 } from "@/lib/supabase-browser";
 import type { PlayerView } from "@/server/table";
+import { withClockFields } from "./logic/clock";
 
 export interface Snapshot {
   version: number;
@@ -18,11 +19,18 @@ const VERSION_CHECK_MS = 4000;
 
 /** 画面データを最新に保つ。Realtimeの通知と、操作の応答の両方から受け取る。 */
 export function useGameView(gameId: string, initial: Snapshot) {
-  const [snapshot, setSnapshot] = useState(initial);
+  const [snapshot, setSnapshot] = useState(() => ({
+    ...initial,
+    view: withClockFields(initial.view),
+  }));
 
   // 通知は順番どおりに届くとは限らないので、版番号の新しいものだけを採用する
   const accept = useCallback((next: Snapshot) => {
-    setSnapshot((current) => (next.version > current.version ? next : current));
+    setSnapshot((current) =>
+      next.version > current.version
+        ? { version: next.version, view: withClockFields(next.view) }
+        : current,
+    );
   }, []);
 
   const refetch = useCallback(async () => {

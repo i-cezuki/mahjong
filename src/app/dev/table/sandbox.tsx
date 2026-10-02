@@ -215,6 +215,7 @@ export function Sandbox() {
         error={error}
         send={send}
         shownDice={0}
+        serverTime={Date.now}
       />
       <div className="fixed right-0 bottom-0 z-50 flex gap-1 text-[10px] opacity-60 hover:opacity-100">
         {debug("20手進める", () =>

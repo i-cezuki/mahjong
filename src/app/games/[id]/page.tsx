@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Screen, buttonClass } from "@/components/screen";
 import { requireApproved } from "@/server/auth";
-import { abandonStaleGames } from "@/server/games";
+import { abandonStaleGames, serverNow } from "@/server/games";
 import { isUuid } from "@/server/room-rules";
 import { createSessionClient } from "@/server/supabase";
 import type { PlayerView } from "@/server/table";
@@ -65,6 +65,7 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
       names={game.data.player_ids.map((pid) => nameOf.get(pid) ?? "（不明）")}
       initialVersion={row.data.version}
       initialView={row.data.view as unknown as PlayerView}
+      renderedAt={serverNow()}
     />
   );
 }
