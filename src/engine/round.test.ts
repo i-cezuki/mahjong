@@ -10,13 +10,19 @@ import {
 import type { RoundEvent, RoundState, Seat } from "./round";
 import { deckWithSwaps, range, seedOf } from "./testing";
 import { isFlower } from "./tiles";
+import { SEATS } from "./wall";
 import type { TileId } from "./tiles";
 
 function allTiles(state: RoundState): TileId[] {
   return [
     ...state.hands.flat(),
     ...state.flowers.flat(),
-    ...state.rivers.flat().map((discard) => discard.tile),
+    ...state.melds.flat().flatMap((meld) => meld.tiles),
+    // 鳴かれた牌は副露の側で数える
+    ...state.rivers
+      .flat()
+      .filter((discard) => !discard.called)
+      .map((discard) => discard.tile),
     ...state.wall.live,
     ...state.wall.rinshan,
     ...state.wall.doraIndicators,
@@ -24,16 +30,23 @@ function allTiles(state: RoundState): TileId[] {
   ].sort((a, b) => a - b);
 }
 
-/** 手番の人がツモ切りする。 */
+/** 手番の人がツモ切りし、他家は全員スルーする。 */
 function tsumogiri(state: RoundState): {
   state: RoundState;
   events: RoundEvent[];
 } {
-  return applyAction(state, {
+  let step = applyAction(state, {
     type: "discard",
     seat: state.turn,
     tile: state.drawn!,
   });
+  const events = [...step.events];
+  while (step.state.phase === "awaitResponses") {
+    const seat = SEATS.find((s) => legalActions(step.state, s).length > 0)!;
+    step = applyAction(step.state, { type: "pass", seat });
+    events.push(...step.events);
+  }
+  return { state: step.state, events };
 }
 
 function expectIllegal(run: () => unknown, code: string): void {
@@ -49,7 +62,7 @@ function expectIllegal(run: () => unknown, code: string): void {
 
 describe("局の開始", () => {
   it("親が1枚ツモって14枚、子は13枚で、親の操作待ちになる", () => {
-    const { state } = startRoundFromDeck(deckWithSwaps(), 0);
+    const { state } = startRoundFromDeck(deckWithSwaps(), { dealer: 0 });
     expect(state.phase).toBe("awaitTurnAction");
     expect(state.dealer).toBe(0);
     expect(state.turn).toBe(0);
@@ -59,17 +72,17 @@ describe("局の開始", () => {
     expect(state.drawn).toBe(39);
     expect(state.wall.live).toHaveLength(62);
     expect(state.wall.doraIndicators).toEqual([110]);
-    expect(state.result).toBeNull();
+    expect(state.outcome).toBeNull();
   });
 
   it("親が席2なら席2の手番から始まる", () => {
-    const { state } = startRoundFromDeck(deckWithSwaps(), 2);
+    const { state } = startRoundFromDeck(deckWithSwaps(), { dealer: 2 });
     expect(state.turn).toBe(2);
     expect(state.hands.map((hand) => hand.length)).toEqual([13, 13, 14]);
   });
 
   it("配牌と第一ツモのイベントを返す", () => {
-    const { events } = startRoundFromDeck(deckWithSwaps(), 0);
+    const { events } = startRoundFromDeck(deckWithSwaps(), { dealer: 0 });
     expect(events).toEqual([
       {
         type: "deal",
@@ -100,7 +113,9 @@ describe("局の開始", () => {
 
 describe("花牌", () => {
   it("親の配牌の花牌は第一ツモのあとに抜き、嶺上牌から補充する", () => {
-    const { state, events } = startRoundFromDeck(deckWithSwaps([0, 108]), 0);
+    const { state, events } = startRoundFromDeck(deckWithSwaps([0, 108]), {
+      dealer: 0,
+    });
     expect(state.flowers[0]).toEqual([108]);
     expect(state.hands[0]).toEqual([...range(1, 13), 39, 102]);
     expect(state.drawn).toBe(102);
@@ -114,7 +129,9 @@ describe("花牌", () => {
   });
 
   it("子の配牌の花牌は、その人の手番が来るまで抜かない", () => {
-    const started = startRoundFromDeck(deckWithSwaps([13, 108]), 0).state;
+    const started = startRoundFromDeck(deckWithSwaps([13, 108]), {
+      dealer: 0,
+    }).state;
     expect(started.hands[1]).toContain(108);
     expect(started.flowers[1]).toEqual([]);
 
@@ -132,7 +149,9 @@ describe("花牌", () => {
   });
 
   it("ツモった花牌は抜いて補充し、補充牌がツモ牌になる", () => {
-    const { state } = startRoundFromDeck(deckWithSwaps([39, 108]), 0);
+    const { state } = startRoundFromDeck(deckWithSwaps([39, 108]), {
+      dealer: 0,
+    });
     expect(state.flowers[0]).toEqual([108]);
     expect(state.hands[0]).toEqual([...range(0, 13), 102]);
     expect(state.drawn).toBe(102);
@@ -140,7 +159,7 @@ describe("花牌", () => {
 
   it("補充牌も花牌なら続けて抜く", () => {
     const deck = deckWithSwaps([39, 108], [102, 109]);
-    const { state, events } = startRoundFromDeck(deck, 0);
+    const { state, events } = startRoundFromDeck(deck, { dealer: 0 });
     expect(state.flowers[0]).toEqual([108, 109]);
     expect(state.hands[0]).toEqual([...range(0, 13), 103]);
     expect(state.drawn).toBe(103);
@@ -156,20 +175,22 @@ describe("花牌", () => {
 
   it("配牌に花牌が2枚あれば2枚とも抜く", () => {
     const deck = deckWithSwaps([0, 108], [1, 109]);
-    const { state } = startRoundFromDeck(deck, 0);
+    const { state } = startRoundFromDeck(deck, { dealer: 0 });
     expect(state.flowers[0]).toEqual([108, 109]);
     expect(state.hands[0]).toEqual([...range(2, 13), 39, 102, 103]);
     expect(state.drawn).toBe(103);
   });
 
   it("花牌を抜いてもツモ山は減らない", () => {
-    const { state } = startRoundFromDeck(deckWithSwaps([0, 108]), 0);
+    const { state } = startRoundFromDeck(deckWithSwaps([0, 108]), {
+      dealer: 0,
+    });
     expect(state.wall.live).toEqual(range(40, 102));
   });
 });
 
 describe("打牌", () => {
-  const started = startRoundFromDeck(deckWithSwaps(), 0).state;
+  const started = startRoundFromDeck(deckWithSwaps(), { dealer: 0 }).state;
 
   it("手牌から河へ移り、次の人がツモる", () => {
     const { state, events } = applyAction(started, {
@@ -225,10 +246,13 @@ describe("打牌", () => {
 });
 
 describe("合法手の一覧", () => {
-  const started = startRoundFromDeck(deckWithSwaps(), 0).state;
+  const started = startRoundFromDeck(deckWithSwaps(), { dealer: 0 }).state;
 
   it("手番の人は手牌14枚のどれでも切れる", () => {
-    expect(legalActions(started, 0)).toEqual(
+    const discards = legalActions(started, 0).filter(
+      (a) => a.type === "discard",
+    );
+    expect(discards).toEqual(
       [...range(0, 13), 39].map((tile) => ({ type: "discard", seat: 0, tile })),
     );
   });
@@ -256,20 +280,25 @@ describe("流局", () => {
 
   it("ツモ山63枚をツモり切り、最後の打牌で流局する", () => {
     const { state, events, discards } = playOut(
-      startRoundFromDeck(deckWithSwaps(), 0).state,
+      startRoundFromDeck(deckWithSwaps(), { dealer: 0 }).state,
     );
     expect(discards).toBe(63);
     expect(state.wall.live).toEqual([]);
-    expect(state.result).toEqual({ type: "exhaustiveDraw" });
     expect(state.drawn).toBeNull();
+    // id順の山では席1と席2が筒子の清一色で聴牌している
+    expect(state.outcome).toMatchObject({
+      type: "exhaustiveDraw",
+      tenpai: [1, 2],
+      pointDeltas: [-2000, 1000, 1000],
+    });
     expect(events).toEqual([
       { type: "discard", seat: 2, tile: 101, tsumogiri: true },
-      { type: "exhaustiveDraw" },
+      { type: "roundEnd", outcome: state.outcome },
     ]);
   });
 
   it("最後の1枚をツモった時点ではまだ流局しない", () => {
-    let state = startRoundFromDeck(deckWithSwaps(), 0).state;
+    let state = startRoundFromDeck(deckWithSwaps(), { dealer: 0 }).state;
     for (let i = 0; i < 62; i++) state = tsumogiri(state).state;
     expect(state.wall.live).toEqual([]);
     expect(state.phase).toBe("awaitTurnAction");
@@ -277,7 +306,9 @@ describe("流局", () => {
   });
 
   it("流局後は操作できない", () => {
-    const { state } = playOut(startRoundFromDeck(deckWithSwaps(), 0).state);
+    const { state } = playOut(
+      startRoundFromDeck(deckWithSwaps(), { dealer: 0 }).state,
+    );
     expect(legalActions(state, 0)).toEqual([]);
     expectIllegal(
       () => applyAction(state, { type: "discard", seat: 0, tile: 0 }),
@@ -287,33 +318,37 @@ describe("流局", () => {
 });
 
 describe("自動対局による検証", () => {
-  it("乱数で打牌しても牌は112枚のままで、必ず63打目で流局する", () => {
-    for (let n = 0; n < 300; n++) {
+  it("乱数で操作しても牌は112枚、点棒は90000点のままで、必ず局が終わる", () => {
+    for (let n = 0; n < 200; n++) {
       const seed = seedOf(n);
-      const dealer = (n % 3) as Seat;
-      const picker = createRng(seed, 1);
-      let state = startRound({ seed, dealer }).state;
-      let discards = 0;
+      const picker = createRng(seed, 99);
+      let state = startRound({ seed, dealer: (n % 3) as Seat }).state;
+      let steps = 0;
 
       while (state.phase !== "ended") {
         expect(allTiles(state)).toEqual(range(0, 112));
-        const hand = state.hands[state.turn];
-        expect(hand).toHaveLength(14);
-        expect(hand.some(isFlower)).toBe(false);
-        expect(hand).toContain(state.drawn);
+        expect(state.points.reduce((a, b) => a + b, 0) + state.kyotaku).toBe(
+          90000,
+        );
+        if (state.phase === "awaitTurnAction") {
+          expect(state.hands[state.turn].some(isFlower)).toBe(false);
+        }
 
-        const actions = legalActions(state, state.turn);
-        const action = actions[picker.nextInt(actions.length)]!;
-        state = applyAction(state, action).state;
-        discards++;
+        const actions = SEATS.flatMap((seat) => legalActions(state, seat));
+        expect(actions.length).toBeGreaterThan(0);
+        state = applyAction(
+          state,
+          actions[picker.nextInt(actions.length)]!,
+        ).state;
+        expect(++steps).toBeLessThan(1000);
       }
 
-      expect(discards).toBe(63);
       expect(allTiles(state)).toEqual(range(0, 112));
-      expect(state.hands.map((hand) => hand.length)).toEqual([13, 13, 13]);
-      const flowers = state.flowers.flat();
-      expect(flowers.every(isFlower)).toBe(true);
-      expect(state.wall.rinshan).toHaveLength(8 - flowers.length);
+      expect(state.points.reduce((a, b) => a + b, 0) + state.kyotaku).toBe(
+        90000,
+      );
+      expect(state.chipDeltas.reduce((a, b) => a + b, 0)).toBe(0);
+      expect(state.outcome).not.toBeNull();
     }
   });
 });

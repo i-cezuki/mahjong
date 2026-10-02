@@ -77,3 +77,48 @@ export function tileAllocator(): (notation: string) => TileId[] {
 export function tiles(notation: string): TileId[] {
   return tileAllocator()(notation);
 }
+
+export interface DeckSpec {
+  /** 親（席0）、席1、席2の配牌。13枚ずつ。 */
+  hands: [string, string, string];
+  /** ツモ山の先頭から順に */
+  live?: string;
+  /** ツモ山の末尾（最後の牌が最初の槓ドラ表示牌、その手前が槓裏） */
+  liveTail?: string;
+  /** 嶺上牌の先頭から順に */
+  rinshan?: string;
+  dora?: string;
+  ura?: string;
+}
+
+/**
+ * テスト用。親が席0の山を組む。指定のない場所は残りの牌をid順に詰める。
+ * 花牌は指定しない限り嶺上牌の末尾に集まり、対局には出てこない。
+ * 指定がなければドラ表示牌は1萬（ドラは9萬）、裏ドラ表示牌は9萬（裏ドラは1萬）。
+ */
+export function buildDeck(spec: DeckSpec): TileId[] {
+  const t = tileAllocator();
+  const deck = new Array<TileId | undefined>(TILE_COUNT).fill(undefined);
+  const place = (start: number, ids: TileId[]) =>
+    ids.forEach((id, i) => (deck[start + i] = id));
+
+  spec.hands.forEach((hand, seat) => {
+    const ids = t(hand);
+    if (ids.length !== 13) throw new Error(`配牌は13枚です: ${hand}`);
+    place(seat * 13, ids);
+  });
+  place(39, t(spec.live ?? ""));
+  const tail = t(spec.liveTail ?? "");
+  place(102 - tail.length, tail);
+  place(102, t(spec.rinshan ?? ""));
+  place(110, t(spec.dora ?? "1m"));
+  place(111, t(spec.ura ?? "9m"));
+
+  const used = new Set(deck.filter((id) => id !== undefined));
+  const rest = range(0, TILE_COUNT).filter((id) => !used.has(id));
+  const order = [...range(0, 102), 110, 111, ...range(102, 110)];
+  for (const position of order) {
+    if (deck[position] === undefined) deck[position] = rest.shift();
+  }
+  return deck as TileId[];
+}

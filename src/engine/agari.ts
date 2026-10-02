@@ -97,13 +97,67 @@ export function isKokushi(kinds: readonly TileKind[]): boolean {
   return new Set(kinds).size === YAOCHU_KINDS.length;
 }
 
+/** 筒子か索子の9種類ぶんの枚数が、面子だけ（needPair なら雀頭1つと面子）に分けられるか。 */
+function suitDecomposes(counts: number[], needPair: boolean): boolean {
+  if (needPair) {
+    for (let i = 0; i < 9; i++) {
+      if (counts[i]! < 2) continue;
+      counts[i]! -= 2;
+      const ok = suitDecomposes(counts, false);
+      counts[i]! += 2;
+      if (ok) return true;
+    }
+    return false;
+  }
+  // 刻子3つと順子3つは入れ替えられるので、3で割った余りの数だけ順子を始めればよい
+  const rest = [...counts];
+  for (let i = 0; i < 9; i++) {
+    const sequences = rest[i]! % 3;
+    if (sequences === 0) continue;
+    if (i > 6 || rest[i + 1]! < sequences || rest[i + 2]! < sequences) {
+      return false;
+    }
+    rest[i + 1]! -= sequences;
+    rest[i + 2]! -= sequences;
+  }
+  return true;
+}
+
+/** 4面子1雀頭の形に分けられるかだけを調べる（decompose より速い）。 */
+function isStandardShape(counts: readonly number[]): boolean {
+  let pairs = 0;
+  const suits: { tiles: number[]; needPair: boolean }[] = [];
+  let index = 0;
+  while (index < HAND_KINDS.length) {
+    const suit = suitOf(HAND_KINDS[index]!);
+    if (suit === "p" || suit === "s") {
+      const tiles = counts.slice(index, index + 9);
+      const remainder = tiles.reduce((sum, count) => sum + count, 0) % 3;
+      if (remainder === 1) return false;
+      if (remainder === 2) pairs++;
+      suits.push({ tiles, needPair: remainder === 2 });
+      index += 9;
+    } else {
+      // 萬子と字牌は順子にならない
+      const count = counts[index]!;
+      if (count === 2) pairs++;
+      else if (count !== 0 && count !== 3) return false;
+      index++;
+    }
+  }
+  if (pairs !== 1) return false;
+  return suits.every(({ tiles, needPair }) => suitDecomposes(tiles, needPair));
+}
+
 /** 門前部分（和了牌を含む）が和了形かどうか。meldCount は副露と暗槓の数。 */
 export function isCompleteHand(
   kinds: readonly TileKind[],
   meldCount: number,
 ): boolean {
   if (meldCount === 0 && (isChiitoitsu(kinds) || isKokushi(kinds))) return true;
-  return decompose(kinds, 4 - meldCount).length > 0;
+  if (kinds.length !== (4 - meldCount) * 3 + 2) return false;
+  if (kinds.some((kind) => !KIND_INDEX.has(kind))) return false;
+  return isStandardShape(toCounts(kinds));
 }
 
 /**

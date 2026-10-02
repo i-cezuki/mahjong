@@ -26,7 +26,7 @@ export interface WinInput {
   /** 自風。親は東。 */
   seatWind: Wind;
   roundWind: "1z" | "2z";
-  riichi?: "riichi" | "doubleRiichi";
+  riichi?: "riichi" | "doubleRiichi" | undefined;
   ippatsu?: boolean;
   /** ツモり切りの最後の牌での和了（ツモなら海底、ロンなら河底） */
   lastTile?: boolean;

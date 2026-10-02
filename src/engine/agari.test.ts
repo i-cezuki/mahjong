@@ -7,8 +7,9 @@ import {
   waitingKinds,
 } from "./agari";
 import type { Meld } from "./agari";
-import { tileAllocator, tiles } from "./testing";
-import { tileOf } from "./tiles";
+import { createRng, shuffle } from "./rng";
+import { seedOf, tileAllocator, tiles } from "./testing";
+import { TILE_KINDS, tileOf } from "./tiles";
 import type { TileKind } from "./tiles";
 
 function kinds(notation: string): TileKind[] {
@@ -96,6 +97,31 @@ describe("isCompleteHand", () => {
     ["1199m", 3],
   ])("%s（副露%d）は和了形でない", (notation, meldCount) => {
     expect(isCompleteHand(kinds(notation), meldCount)).toBe(false);
+  });
+});
+
+describe("isCompleteHand と decompose の一致", () => {
+  it("乱数で作った手で、速い判定と全分解の結果が同じになる", () => {
+    const rng = createRng(seedOf(1));
+    const kindsInHand = TILE_KINDS.filter((kind) => kind !== "1f");
+    let complete = 0;
+    for (let n = 0; n < 5000; n++) {
+      // 少ない種類から引いて、和了形がそれなりに出るようにする
+      const pool = shuffle(kindsInHand, rng).slice(0, 6);
+      const counts = new Map<TileKind, number>();
+      const hand: TileKind[] = [];
+      while (hand.length < 14) {
+        const kind = pool[rng.nextInt(pool.length)]!;
+        if ((counts.get(kind) ?? 0) === 4) continue;
+        counts.set(kind, (counts.get(kind) ?? 0) + 1);
+        hand.push(kind);
+      }
+      const expected =
+        decompose(hand, 4).length > 0 || isChiitoitsu(hand) || isKokushi(hand);
+      expect(isCompleteHand(hand, 0)).toBe(expected);
+      if (expected) complete++;
+    }
+    expect(complete).toBeGreaterThan(20);
   });
 });
 

@@ -125,3 +125,10 @@ export function isYaochu(kind: TileKind): boolean {
 export function kindsOf(ids: readonly TileId[]): TileKind[] {
   return ids.map((id) => tileOf(id).kind);
 }
+
+/** その種類の通常の牌（赤、金、ポッチでないもの）を1枚返す。 */
+export function plainTileOf(kind: TileKind): TileId {
+  const tile = ALL_TILES.find((t) => t.kind === kind && t.variant === "normal");
+  if (tile === undefined) throw new RangeError(`存在しない種類です: ${kind}`);
+  return tile.id;
+}
