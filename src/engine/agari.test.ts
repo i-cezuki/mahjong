@@ -65,8 +65,13 @@ describe("七対子と国士無双", () => {
     expect(isChiitoitsu(kinds("1199m2288p3377s11z"))).toBe(true);
   });
 
-  it("同じ牌4枚は2対子として数えない", () => {
-    expect(isChiitoitsu(kinds("1111m2288p3377s11z"))).toBe(false);
+  it("同じ牌4枚は2対子として数える（4枚使いの七対子）", () => {
+    expect(isChiitoitsu(kinds("1111m2288p3377s11z"))).toBe(true);
+    expect(isChiitoitsu(kinds("1111m2222p3377s11z"))).toBe(true);
+  });
+
+  it("同じ牌3枚は対子として数えない", () => {
+    expect(isChiitoitsu(kinds("111m9m2288p3377s11z"))).toBe(false);
   });
 
   it("13種類の么九牌と、そのどれか1枚で国士無双", () => {
@@ -148,6 +153,14 @@ describe("waitingKinds（待ち）", () => {
 
   it("七対子の待ち", () => {
     expect(waits("1199m2288p3377s1z")).toEqual(["1z"]);
+  });
+
+  it("4枚使いの七対子の待ち：3枚持っている牌の4枚目を待つ", () => {
+    expect(waits("111m2288p3377s11z")).toEqual(["1m"]);
+  });
+
+  it("4枚使いの七対子の待ち：4枚そろっていれば残りの単騎を待つ", () => {
+    expect(waits("1111m2288p3377s1z")).toEqual(["1z"]);
   });
 
   it("国士無双の13面待ち", () => {

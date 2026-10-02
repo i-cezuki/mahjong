@@ -197,6 +197,12 @@ describe("2翻以上の役", () => {
     expect(result?.han).toBe(2);
   });
 
+  it("4枚使いの七対子", () => {
+    const result = win("1111m2288p3377s4z", "4z");
+    expect(names(result)).toEqual(["chiitoitsu"]);
+    expect(result?.han).toBe(2);
+  });
+
   it("対々和", () => {
     const result = win("333s444z3z", "3z", {
       melds: [
@@ -603,6 +609,12 @@ describe("追加役満", () => {
 
   it("二盃口の形でも清一色七対子として役満", () => {
     const result = win("112233446677p8p", "8p");
+    expect(names(result)).toEqual(["chinitsuChiitoitsu"]);
+    expect(result?.yakuman).toBe(1);
+  });
+
+  it("4枚使いでも清一色七対子として役満", () => {
+    const result = win("1111224466778p", "8p");
     expect(names(result)).toEqual(["chinitsuChiitoitsu"]);
     expect(result?.yakuman).toBe(1);
   });

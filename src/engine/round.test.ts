@@ -267,11 +267,12 @@ describe("流局", () => {
     expect(discards).toBe(63);
     expect(state.wall.live).toEqual([]);
     expect(state.drawn).toBeNull();
-    // id順の山では席1と席2が筒子の清一色で聴牌している
+    // id順の山では席1と席2が筒子の清一色で聴牌している。
+    // 席0も 1萬×4、9萬×4、1筒×4、2筒 で、4枚使いの七対子の2筒待ち
     expect(state.outcome).toMatchObject({
       type: "exhaustiveDraw",
-      tenpai: [1, 2],
-      pointDeltas: [-2000, 1000, 1000],
+      tenpai: [0, 1, 2],
+      pointDeltas: [0, 0, 0],
     });
     expect(events).toEqual([
       { type: "discard", seat: 2, tile: 101, tsumogiri: true },

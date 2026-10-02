@@ -86,9 +86,10 @@ export function decompose(
   return results;
 }
 
+/** 七対子。同じ牌4枚は2対子として数える（4枚使いの七対子）。 */
 export function isChiitoitsu(kinds: readonly TileKind[]): boolean {
   if (kinds.length !== 14) return false;
-  return toCounts(kinds).every((count) => count === 0 || count === 2);
+  return toCounts(kinds).every((count) => count % 2 === 0);
 }
 
 export function isKokushi(kinds: readonly TileKind[]): boolean {
