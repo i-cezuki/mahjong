@@ -11,7 +11,25 @@ npm run test       # テスト
 npm run typecheck  # 型チェック
 npm run lint       # ESLint
 npm run format     # Prettier
-npm run test:db    # RLSのテスト（ローカルのSupabaseが必要）
+npm run test:db    # RLSとDB関数のテスト（ローカルのSupabaseが必要）
+npm run test:play  # APIとRealtimeを通して3人で1半荘を進める（下記）
+```
+
+## 構成
+
+- `src/engine/`：UI、DB、通信に依存しないゲームのロジック。
+- `src/server/`：DBアクセス、認証確認、操作の受付、画面データの生成。`table.ts` がクライアントに送る内容を1か所で作る。
+- `src/app/api/`：ルームと対局のAPI。一覧は仕様書の Realtime Protocol を参照。
+- `src/app/`：画面。対局の画面は通信を確かめるための仮のもの。
+
+### 通しの確認
+
+ローカルのSupabaseと開発サーバーを起動した状態で実行する。テスト用のユーザーを4人作り、ルームの作成から参加、1半荘、再戦までをAPIとRealtimeだけで進めて、不正な要求が拒否されることと応答時間を確かめる。終わったらユーザーとルームを消す。本番のSupabaseに向けては実行できない。
+
+```bash
+npx supabase start
+npm run dev
+npm run test:play
 ```
 
 ## Supabase
@@ -45,5 +63,13 @@ npx supabase stop
 4. Supabase の Authentication > Sign In / Providers で Google を有効にし、クライアントIDとシークレットを入れる。
 5. Supabase の Authentication > URL Configuration で、Site URL に本番のURLを、Redirect URLs に `http://localhost:3000/auth/callback` と `https://<本番のドメイン>/auth/callback` を入れる。
 6. `.env.example` を `.env.local` にコピーして値を入れる。Vercel にも同じ4つの環境変数を設定する。
+
+### Vercel にデプロイする
+
+1. [Vercel](https://vercel.com) でこのリポジトリを取り込む（Hobby プラン）。設定は既定のままでよい。
+2. Settings > Environment Variables に、`.env.example` の4つを本番のSupabaseの値で入れる。
+3. Settings > Functions > Function Region を、Supabaseのプロジェクトと同じ地域にする（東京なら `hnd1`）。離れていると、操作のたびにDBとの往復で数百ミリ秒かかる。
+4. デプロイしたら、SupabaseのURL設定（上の手順5）に本番のドメインが入っていることを確かめる。
+5. スキーマを変えたあとは `npx supabase db push` を忘れずに行う。
 
 `ADMIN_EMAIL` のGoogleアカウントでログインすると管理者になり、`/admin` でほかの人を承認できる。
