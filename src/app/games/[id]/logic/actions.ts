@@ -11,6 +11,8 @@ export interface ActionMenu {
   riichiTiles: TileId[];
   /** 2倍リーチをして切れる牌。半荘で1回使ったあとは空になる */
   doubleRiichiTiles: TileId[];
+  /** オープンリーチをして切れる牌 */
+  openRiichiTiles: TileId[];
   tsumo: TableAction | null;
   ron: TableAction | null;
   pons: Of<"pon">[];
@@ -27,14 +29,17 @@ export function buildMenu(actions: readonly TableAction[]): ActionMenu {
     actions.filter((a): a is Of<T> => a.type === type);
   const one = (type: TableAction["type"]) =>
     actions.find((a) => a.type === type) ?? null;
-  const riichi = (doubleStake: boolean) =>
+  const riichi = (doubleStake: boolean, open: boolean) =>
     all("riichi")
-      .filter((a) => a.doubleStake === doubleStake)
+      .filter(
+        (a) => a.doubleStake === doubleStake && (a.open ?? false) === open,
+      )
       .map((a) => a.tile);
   return {
     discards: all("discard").map((a) => a.tile),
-    riichiTiles: riichi(false),
-    doubleRiichiTiles: riichi(true),
+    riichiTiles: riichi(false, false),
+    doubleRiichiTiles: riichi(true, false),
+    openRiichiTiles: riichi(false, true),
     tsumo: one("tsumo"),
     ron: one("ron"),
     pons: all("pon"),

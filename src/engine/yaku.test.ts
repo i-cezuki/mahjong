@@ -11,6 +11,7 @@ type Options = Partial<
     | "seatWind"
     | "roundWind"
     | "riichi"
+    | "openRiichi"
     | "ippatsu"
     | "lastTile"
     | "rinshan"
@@ -82,6 +83,22 @@ describe("1翻の役", () => {
     expect(names(result)).toEqual(["riichi"]);
     expect(result?.han).toBe(3);
     expect(result?.yakuman).toBe(0);
+  });
+
+  it("オープンリーチはリーチに1翻を足す", () => {
+    const result = win(...PLAIN, {
+      riichi: "riichi",
+      openRiichi: true,
+      dora: "3z",
+    });
+    expect(names(result)).toEqual(["openRiichi", "riichi"]);
+    expect(result?.han).toBe(4);
+  });
+
+  it("ダブルリーチのオープンは3翻", () => {
+    const result = win(...PLAIN, { riichi: "doubleRiichi", openRiichi: true });
+    expect(names(result)).toEqual(["doubleRiichi", "openRiichi"]);
+    expect(result?.han).toBe(3);
   });
 
   it("一発", () => {
@@ -643,6 +660,12 @@ describe("追加役満", () => {
       const result = win(...PLAIN, { riichi: "riichi", ...options });
       expect(result?.yakuman).toBe(0);
       expect(names(result)).toContain("riichi");
+    });
+
+    it("オープンリーチは不成立", () => {
+      const result = win(...PLAIN, { riichi: "riichi", openRiichi: true });
+      expect(result?.yakuman).toBe(0);
+      expect(result?.han).toBe(2);
     });
 
     it("ダブルリーチは不成立", () => {

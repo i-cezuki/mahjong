@@ -29,6 +29,7 @@ function scenario(deck: DeckSpec) {
     kind: string,
     riichi = false,
     doubleStake = false,
+    open = false,
   ) => {
     const tile = table.game.round.hands[seat].find(
       (id) => tileOf(id).kind === kind,
@@ -36,7 +37,7 @@ function scenario(deck: DeckSpec) {
     if (tile === undefined) throw new Error(`${kind} が手牌にありません`);
     return act(
       riichi
-        ? { type: "riichi", seat, tile, doubleStake }
+        ? { type: "riichi", seat, tile, doubleStake, ...(open && { open }) }
         : { type: "discard", seat, tile },
     );
   };
@@ -77,6 +78,17 @@ describe("detectCalls（発声の検出）", () => {
     // 席1が追いかけて2倍リーチ。すでにリーチしている席0は出さない
     expect(detectCalls(afterFirst, s.cut(1, "3s", true, true))).toEqual([
       { seat: 1, kind: "doubleStakeRiichi" },
+    ]);
+  });
+
+  it("オープンリーチは別の種類", () => {
+    const s = scenario({
+      hands: ["123456789p 23s 11z", ...OTHERS],
+      live: "7z 9s",
+    });
+    const before = s.view();
+    expect(detectCalls(before, s.cut(0, "7z", true, false, true))).toEqual([
+      { seat: 0, kind: "openRiichi" },
     ]);
   });
 

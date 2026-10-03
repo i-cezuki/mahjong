@@ -40,7 +40,10 @@ export function optimisticView(
         handCounts: replaceAt(view.handCounts, seat, view.handCounts[seat] - 1),
         rivers: replaceAt(view.rivers, seat, [...view.rivers[seat], discard]),
         riichi: declaring
-          ? replaceAt(view.riichi, seat, { doubleStake: action.doubleStake })
+          ? replaceAt(view.riichi, seat, {
+              doubleStake: action.doubleStake,
+              ...(action.open && { open: true }),
+            })
           : view.riichi,
       };
     }

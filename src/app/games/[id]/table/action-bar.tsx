@@ -5,7 +5,18 @@ import type { TableAction } from "@/server/table";
 import type { ActionMenu, AutoSettings } from "../logic/actions";
 
 /** ボタンを押したあと、もう1つ選ぶ必要がある状態 */
-export type PickMode = "riichi" | "doubleRiichi" | "pon" | "kan";
+export type PickMode = "riichi" | "doubleRiichi" | "openRiichi" | "pon" | "kan";
+
+/** リーチの種類を選んで、切る牌を選んでいる */
+export function isRiichiMode(mode: PickMode | null): boolean {
+  return mode === "riichi" || mode === "doubleRiichi" || mode === "openRiichi";
+}
+
+const RIICHI_LABELS: Partial<Record<PickMode, string>> = {
+  riichi: "リーチ",
+  doubleRiichi: "2倍リーチ",
+  openRiichi: "オープンリーチ",
+};
 
 const base =
   "flex h-11 min-w-20 items-center justify-center gap-1 rounded border px-4 text-base font-semibold disabled:opacity-50";
@@ -38,11 +49,11 @@ export function ActionBar({
     </button>
   );
 
-  if (mode === "riichi" || mode === "doubleRiichi") {
+  if (isRiichiMode(mode)) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-sm text-pink-200">
-          {mode === "doubleRiichi" ? "2倍リーチ" : "リーチ"}
+          {RIICHI_LABELS[mode!]}
           ：切る牌を2回タップ
         </span>
         {cancel}
@@ -131,6 +142,8 @@ export function ActionBar({
         button("リーチ", styles.riichi, () => onMode("riichi"))}
       {menu.doubleRiichiTiles.length > 0 &&
         button("2倍リーチ", styles.riichi, () => onMode("doubleRiichi"))}
+      {menu.openRiichiTiles.length > 0 &&
+        button("オープンリーチ", styles.riichi, () => onMode("openRiichi"))}
       {menu.tsumo && button("ツモ", styles.win, () => send(menu.tsumo!))}
       {menu.ron && button("ロン", styles.win, () => send(menu.ron!))}
       {menu.pass && button("スキップ", styles.quiet, () => send(menu.pass!))}

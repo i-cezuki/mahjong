@@ -67,6 +67,18 @@ describe("optimisticView（操作の先取り表示）", () => {
     expect(guess.riichi).toEqual(real.riichi);
   });
 
+  it("オープンリーチは、オープンリーチの状態にする", () => {
+    const table = tenpaiTable();
+    const view = buildView(table, 0);
+    const action = view.actions.find(
+      (a) => a.type === "riichi" && a.open && tileOf(a.tile).kind === "7z",
+    )!;
+    const guess = optimisticView(view, action)!;
+    const real = serverView(table, action as PlayAction);
+    expect(guess.riichi[0]).toEqual({ doubleStake: false, open: true });
+    expect(guess.riichi).toEqual(real.riichi);
+  });
+
   it("スキップは、ボタンを消すだけ", () => {
     const table = tenpaiTable();
     const view = buildView(table, 0);

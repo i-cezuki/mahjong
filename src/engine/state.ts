@@ -27,6 +27,11 @@ export interface RiichiState {
   doubleRiichi: boolean;
   /** 2倍リーチ（供託5000点） */
   doubleStake: boolean;
+  /**
+   * オープンリーチ（供託2000点、1翻、成立したら手牌を公開）。
+   * この決まりができる前に保存された対局にはないので、ないものは通常のリーチ。
+   */
+  open?: true;
   ippatsu: boolean;
   /** リーチ後に和了牌を見逃した。以後はツモ和了のみ。 */
   furiten: boolean;
@@ -161,7 +166,13 @@ export type RoundEvent =
       tsumogiri: boolean;
       riichi?: true;
     }
-  | { type: "riichi"; seat: Seat; doubleRiichi: boolean; doubleStake: boolean }
+  | {
+      type: "riichi";
+      seat: Seat;
+      doubleRiichi: boolean;
+      doubleStake: boolean;
+      open?: true;
+    }
   | { type: "pon"; seat: Seat; from: Seat; tiles: TileId[] }
   | {
       type: "kan";
@@ -184,7 +195,14 @@ export type RoundEvent =
 
 export type Action =
   | { type: "discard"; seat: Seat; tile: TileId }
-  | { type: "riichi"; seat: Seat; tile: TileId; doubleStake: boolean }
+  | {
+      type: "riichi";
+      seat: Seat;
+      tile: TileId;
+      /** 2倍リーチ。オープンリーチとは同時に宣言できない */
+      doubleStake: boolean;
+      open?: true;
+    }
   | { type: "tsumo"; seat: Seat }
   | { type: "ankan"; seat: Seat; kind: TileKind }
   | { type: "kakan"; seat: Seat; tile: TileId }

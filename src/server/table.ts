@@ -89,7 +89,9 @@ export interface PlayerView {
   melds: PerSeat<MeldState[]>;
   flowers: PerSeat<TileId[]>;
   rivers: PerSeat<Discard[]>;
-  riichi: PerSeat<{ doubleStake: boolean } | null>;
+  riichi: PerSeat<{ doubleStake: boolean; open?: true } | null>;
+  /** 成立したオープンリーチの手牌。手番のツモ牌は切るまで入れない */
+  openHands: PerSeat<TileId[] | null>;
   /** 応答待ちになっている打牌 */
   lastDiscard: { seat: Seat; tile: TileId } | null;
 
@@ -228,7 +230,18 @@ export function buildView(table: TableState, seat: Seat): PlayerView {
     rivers: round.rivers,
     riichi: perSeat((s) => {
       const riichi = round.riichi[s];
-      return riichi ? { doubleStake: riichi.doubleStake } : null;
+      if (!riichi) return null;
+      return {
+        doubleStake: riichi.doubleStake,
+        ...(riichi.open && { open: true }),
+      };
+    }),
+    openHands: perSeat((s) => {
+      // 宣言牌への応答を待っている間は、まだ成立していない
+      const declaring = pending?.seat === s && pending.riichiStake !== null;
+      if (!round.riichi[s]?.open || declaring) return null;
+      const drawn = round.turn === s ? round.drawn : null;
+      return round.hands[s].filter((id) => id !== drawn);
     }),
     lastDiscard: pending ? { seat: pending.seat, tile: pending.tile } : null,
 
@@ -306,9 +319,17 @@ export function parseAction(input: unknown, seat: Seat): TableAction | null {
         ? { type: raw.type, seat, tile: raw.tile }
         : null;
     case "riichi":
-      return isTileId(raw.tile) && typeof raw.doubleStake === "boolean"
-        ? { type: "riichi", seat, tile: raw.tile, doubleStake: raw.doubleStake }
-        : null;
+      if (!isTileId(raw.tile) || typeof raw.doubleStake !== "boolean") {
+        return null;
+      }
+      if (raw.open !== undefined && raw.open !== true) return null;
+      return {
+        type: "riichi",
+        seat,
+        tile: raw.tile,
+        doubleStake: raw.doubleStake,
+        ...(raw.open === true && { open: true }),
+      };
     case "ankan":
       return TILE_KINDS.includes(raw.kind as TileKind)
         ? { type: "ankan", seat, kind: raw.kind as TileKind }

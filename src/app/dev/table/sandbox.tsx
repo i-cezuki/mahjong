@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { TableScreen } from "@/app/games/[id]/table/table-screen";
-import { startRoundFromDeck } from "@/engine";
+import { startRoundFromDeck, tileOf } from "@/engine";
 import type { Seat } from "@/engine";
 import { buildDeck } from "@/engine/testing";
 import { applyTimed, applyTimeout, startClock } from "@/server/clock";
@@ -107,6 +107,51 @@ function tenpaiTable(nextDraw: string, firstDraw = "7z"): TableState {
     },
     Date.now(),
   );
+}
+
+/** 応答待ちを全員スキップで流す */
+function passAll(table: TableState): TableState {
+  let current = table;
+  while (current.game.round.phase === "awaitResponses") {
+    const pass = ([0, 1, 2] as const)
+      .flatMap((s) => buildView(current, s).actions)
+      .find((a) => a.type === "pass");
+    if (!pass) break;
+    current = step(current, pass);
+  }
+  return current;
+}
+
+/** 下家が配牌で聴牌していて、最初のツモで中を切ってオープンリーチした局。 */
+function opponentOpenRiichiTable(): TableState {
+  const seed = randomSeed();
+  const deck = buildDeck({
+    hands: [
+      "19m 147p 268s 12346z",
+      "123456789p 234s 5s",
+      "19m 258p 147s 12346z",
+    ],
+    live: "9m 7z 3p 3s",
+    dora: "4s",
+    ura: "8p",
+  });
+  const start = startTable({ seed }).table;
+  let table: TableState = startClock(
+    {
+      ...start,
+      game: {
+        ...start.game,
+        round: startRoundFromDeck(deck, { dealer: ME, seed }).state,
+      },
+    },
+    Date.now(),
+  );
+  const drawn = table.game.round.drawn;
+  table = passAll(step(table, { type: "discard", seat: ME, tile: drawn! }));
+  const open = buildView(table, 1).actions.find(
+    (a) => a.type === "riichi" && a.open && tileOf(a.tile).kind === "7z",
+  )!;
+  return passAll(step(table, open));
 }
 
 /** 作り物のサイコロチャンス。エンジンではめったに起きないので、画面データを上書きして出す。 */
@@ -301,6 +346,11 @@ export function Sandbox() {
           setFake(null);
           setScene((n) => n + 1);
           update(() => tenpaiTable("o5z"));
+        })}
+        {debug("相手のオープンリーチ", () => {
+          setFake(null);
+          setScene((n) => n + 1);
+          update(() => opponentOpenRiichiTable());
         })}
         {debug("最初から", () => {
           setFake(null);

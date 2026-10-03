@@ -4,7 +4,14 @@ import type { PlayerView } from "@/server/table";
 
 /** 卓に大きく出す発声の種類。 */
 export type CallKind =
-  "riichi" | "doubleStakeRiichi" | "pon" | "kan" | "ron" | "tsumo" | "pocchi";
+  | "riichi"
+  | "doubleStakeRiichi"
+  | "openRiichi"
+  | "pon"
+  | "kan"
+  | "ron"
+  | "tsumo"
+  | "pocchi";
 
 export interface Call {
   seat: Seat;
@@ -14,6 +21,7 @@ export interface Call {
 export const CALL_LABELS: Record<CallKind, string> = {
   riichi: "リーチ",
   doubleStakeRiichi: "2倍リーチ",
+  openRiichi: "オープンリーチ",
   pon: "ポン",
   kan: "カン",
   ron: "ロン",
@@ -41,7 +49,11 @@ export function detectCalls(before: PlayerView, after: PlayerView): Call[] {
     if (riichi && !before.riichi[seat]) {
       calls.push({
         seat,
-        kind: riichi.doubleStake ? "doubleStakeRiichi" : "riichi",
+        kind: riichi.doubleStake
+          ? "doubleStakeRiichi"
+          : riichi.open
+            ? "openRiichi"
+            : "riichi",
       });
     }
   }

@@ -27,6 +27,8 @@ export interface WinInput {
   seatWind: Wind;
   roundWind: "1z" | "2z";
   riichi?: "riichi" | "doubleRiichi" | undefined;
+  /** オープンリーチ。リーチしていなければ無視する */
+  openRiichi?: boolean;
   ippatsu?: boolean;
   /** ツモり切りの最後の牌での和了（ツモなら海底、ロンなら河底） */
   lastTile?: boolean;
@@ -41,6 +43,7 @@ export interface WinInput {
 
 export type YakuName =
   | "riichi"
+  | "openRiichi"
   | "doubleRiichi"
   | "ippatsu"
   | "menzenTsumo"
@@ -266,6 +269,7 @@ function normalYakuOf(shape: Shape, ctx: Context): Yaku[] {
 
   if (input.riichi === "doubleRiichi") add("doubleRiichi", 2);
   else if (input.riichi === "riichi") add("riichi", 1);
+  if (input.riichi && input.openRiichi) add("openRiichi", 1);
   if (input.riichi && input.ippatsu) add("ippatsu", 1);
   if (menzen && input.tsumo) add("menzenTsumo", 1);
   if (input.rinshan && input.tsumo) add("rinshan", 1);

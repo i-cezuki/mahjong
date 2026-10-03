@@ -21,6 +21,7 @@ function tilesInView(view: PlayerView): TileId[] {
     ...view.rivers.flat().map((discard) => discard.tile),
     ...(view.lastDiscard ? [view.lastDiscard.tile] : []),
     ...view.revealed.flatMap((hand) => hand ?? []),
+    ...view.openHands.flatMap((hand) => hand ?? []),
     ...(view.outcome?.uraIndicators ?? []),
     ...(view.outcome?.wins.flatMap((win) =>
       win.winTile === null ? [] : [win.winTile],
@@ -51,9 +52,19 @@ function visibleTiles(table: TableState, seat: Seat): Set<TileId> {
           outcome.wins.some((win) => win.seat === s && win.result !== null),
       )
     : [];
+  // 成立したオープンリーチの手牌。ツモ牌は切るまで見せない
+  const pending = round.phase === "awaitResponses" ? round.pending : null;
+  const open = SEATS.filter(
+    (s) =>
+      round.riichi[s]?.open &&
+      !(pending?.seat === s && pending.riichiStake !== null),
+  );
   return new Set([
     ...round.hands[seat],
     ...shown.flatMap((s) => round.hands[s]),
+    ...open.flatMap((s) =>
+      round.hands[s].filter((id) => s !== round.turn || id !== round.drawn),
+    ),
     ...round.wall.doraIndicators,
     ...round.melds.flat().flatMap((meld) => meld.tiles),
     ...round.flowers.flat(),
@@ -85,6 +96,7 @@ const VIEW_KEYS = [
   "kyotaku",
   "lastDiscard",
   "melds",
+  "openHands",
   "outcome",
   "phase",
   "points",
@@ -275,6 +287,85 @@ describe("自動対局", () => {
   }, 60_000);
 });
 
+describe("オープンリーチ", () => {
+  /** 席0がオープンリーチできる配牌。打牌への応答はだれもできない */
+  function openRiichiTable(open: boolean): TableState {
+    const round = startRoundFromDeck(
+      buildDeck({
+        hands: [
+          "111p234s567s789s4z",
+          "19m258p36s4s23z567z",
+          "19m369p25s7s23z567z",
+        ],
+        live: "3z9p9p2z",
+      }),
+      { dealer: 0 },
+    ).state;
+    const start = startTable({ seed: seedOf(1) }).table;
+    const table: TableState = { ...start, game: { ...start.game, round } };
+    const tile = round.hands[0].find((id) =>
+      buildView(table, 0).actions.some(
+        (a) => a.type === "riichi" && a.tile === id,
+      ),
+    )!;
+    return applyTableAction(
+      table,
+      {
+        type: "riichi",
+        seat: 0,
+        tile,
+        doubleStake: false,
+        ...(open && { open: true }),
+      },
+      () => seedOf(2),
+    ).table;
+  }
+
+  it("成立したら、その人の手牌が全員に見える", () => {
+    const table = openRiichiTable(true);
+    const round = table.game.round;
+    expect(round.riichi[0]?.open).toBe(true);
+    expect(buildView(table, 1).openHands).toEqual([round.hands[0], null, null]);
+    expect(buildView(table, 2).riichi[0]).toEqual({
+      doubleStake: false,
+      open: true,
+    });
+    assertNoLeak(
+      table,
+      SEATS.map((seat) => buildView(table, seat)),
+    );
+  });
+
+  it("通常のリーチでは手牌は見えない", () => {
+    const table = openRiichiTable(false);
+    expect(buildView(table, 1).openHands).toEqual([null, null, null]);
+    expect(buildView(table, 1).riichi[0]).toEqual({ doubleStake: false });
+  });
+
+  it("自分の手番のツモ牌は、切るまで他家に見せない", () => {
+    let table = openRiichiTable(true);
+    // 席1と席2がツモ切りして、席0の手番に戻す
+    for (const seat of [1, 2] as const) {
+      const drawn = table.game.round.drawn!;
+      table = applyTableAction(
+        table,
+        { type: "discard", seat, tile: drawn },
+        () => seedOf(3),
+      ).table;
+    }
+    const round = table.game.round;
+    expect(round.turn).toBe(0);
+    expect(round.drawn).not.toBeNull();
+    const shown = buildView(table, 1).openHands[0]!;
+    expect(shown).toHaveLength(13);
+    expect(shown).not.toContain(round.drawn);
+    assertNoLeak(
+      table,
+      SEATS.map((seat) => buildView(table, seat)),
+    );
+  });
+});
+
 describe("サイコロチャンス", () => {
   it("出目を指定する人にだけ操作が出て、結果が全員の画面データに載る", () => {
     // 親（席0）の天和
@@ -405,6 +496,10 @@ describe("parseAction（クライアントから届いた操作の検証）", ()
       { type: "riichi", tile: 5, doubleStake: true },
       { type: "riichi", seat: 1, tile: 5, doubleStake: true },
     );
+    ok(
+      { type: "riichi", tile: 5, doubleStake: false, open: true },
+      { type: "riichi", seat: 1, tile: 5, doubleStake: false, open: true },
+    );
     ok({ type: "tsumo" }, { type: "tsumo", seat: 1 });
     ok({ type: "ankan", kind: "5p" }, { type: "ankan", seat: 1, kind: "5p" });
     ok({ type: "kakan", tile: 111 }, { type: "kakan", seat: 1, tile: 111 });
@@ -432,6 +527,7 @@ describe("parseAction（クライアントから届いた操作の検証）", ()
       { type: "discard", tile: 1.5 },
       { type: "riichi", tile: 5 },
       { type: "riichi", tile: 5, doubleStake: "yes" },
+      { type: "riichi", tile: 5, doubleStake: false, open: "yes" },
       { type: "ankan", kind: "2m" },
       { type: "pon", tiles: [8] },
       { type: "pon", tiles: [8, 9, 10] },

@@ -10,6 +10,7 @@ import type { Tap } from "../logic/double-tap";
 import { seatLayout } from "../logic/seats";
 import { ActionBar, Toggles } from "./action-bar";
 import { CallCutin } from "./call-cutin";
+import { isRiichiMode } from "./action-bar";
 import type { PickMode } from "./action-bar";
 import { CenterPanel } from "./center-panel";
 import { ClockBadge } from "./clock-badge";
@@ -151,13 +152,15 @@ function Table({
     return () => document.removeEventListener("click", onClick);
   }, [tsumogiri, send]);
 
-  const riichi = mode === "riichi" || mode === "doubleRiichi";
+  const riichi = isRiichiMode(mode);
   const pickable =
     mode === "doubleRiichi"
       ? menu.doubleRiichiTiles
-      : mode === "riichi"
-        ? menu.riichiTiles
-        : menu.discards;
+      : mode === "openRiichi"
+        ? menu.openRiichiTiles
+        : mode === "riichi"
+          ? menu.riichiTiles
+          : menu.discards;
 
   function tap(tile: TileId) {
     if (busy) return;
@@ -172,6 +175,7 @@ function Table({
             seat: view.seat,
             tile,
             doubleStake: mode === "doubleRiichi",
+            ...(mode === "openRiichi" && { open: true }),
           }
         : { type: "discard", seat: view.seat, tile },
     );
@@ -221,6 +225,7 @@ function Table({
           side="left"
           seat={layout.left}
           handCount={view.handCounts[layout.left]}
+          openHand={view.openHands[layout.left]}
           melds={view.melds[layout.left]}
           flowers={view.flowers[layout.left]}
         />
@@ -230,6 +235,7 @@ function Table({
           side="right"
           seat={layout.right}
           handCount={view.handCounts[layout.right]}
+          openHand={view.openHands[layout.right]}
           melds={view.melds[layout.right]}
           flowers={view.flowers[layout.right]}
         />

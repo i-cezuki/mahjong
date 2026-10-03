@@ -67,6 +67,7 @@ export function buildWinInput(
         ? "doubleRiichi"
         : "riichi"
       : undefined,
+    openRiichi: riichi?.open ?? false,
     ippatsu: riichi?.ippatsu ?? false,
     lastTile: lastTile && !(tsumo && state.rinshanDraw),
     rinshan: tsumo && state.rinshanDraw,

@@ -60,6 +60,18 @@ function riichi(
   return act(state, { type: "riichi", seat, tile, doubleStake });
 }
 
+function openRiichi(state: RoundState, notation: string): RoundState {
+  const seat = state.turn;
+  const tile = find(state, seat, notation);
+  return act(state, {
+    type: "riichi",
+    seat,
+    tile,
+    doubleStake: false,
+    open: true,
+  });
+}
+
 function passAll(state: RoundState): RoundState {
   while (state.phase === "awaitResponses") {
     const seat = ([0, 1, 2] as const).find(
@@ -675,6 +687,93 @@ describe("リーチ", () => {
     delete (old as Partial<RoundState>).doubleStakeUsed;
     const state = riichi(old, "3z", true);
     expect(state.doubleStakeUsed).toEqual([true, false, false]);
+  });
+
+  it("オープンリーチは2000点を供託する", () => {
+    const state = openRiichi(start(spec), "3z");
+    expect(state.points).toEqual([28000, 30000, 30000]);
+    expect(state.kyotaku).toBe(2000);
+    expect(state.riichi[0]).toMatchObject({ open: true, doubleStake: false });
+  });
+
+  it("オープンリーチは通常のリーチと同じく、宣言できる牌ごとに選べる", () => {
+    const state = start(spec);
+    const riichiTiles = (open: boolean) =>
+      legalActions(state, 0).flatMap((action) =>
+        action.type === "riichi" &&
+        !action.doubleStake &&
+        (action.open ?? false) === open
+          ? [action.tile]
+          : [],
+      );
+    expect(riichiTiles(true).length).toBeGreaterThan(0);
+    expect(riichiTiles(true)).toEqual(riichiTiles(false));
+  });
+
+  it("オープンリーチと2倍リーチは同時に宣言できない", () => {
+    const state = start(spec);
+    expect(
+      legalActions(state, 0).some(
+        (action) =>
+          action.type === "riichi" && action.doubleStake && action.open,
+      ),
+    ).toBe(false);
+    expectNotAllowed(state, {
+      type: "riichi",
+      seat: 0,
+      tile: find(state, 0, "3z"),
+      doubleStake: true,
+      open: true,
+    });
+  });
+
+  it("オープンリーチの成立は牌譜に残る", () => {
+    const state = start(spec);
+    let step = applyAction(state, {
+      type: "riichi",
+      seat: 0,
+      tile: find(state, 0, "3z"),
+      doubleStake: false,
+      open: true,
+    });
+    const events = [...step.events];
+    while (step.state.phase === "awaitResponses") {
+      const current = step.state;
+      const seat = ([0, 1, 2] as const).find(
+        (s) => legalActions(current, s).length > 0,
+      )!;
+      step = applyAction(current, { type: "pass", seat });
+      events.push(...step.events);
+    }
+    expect(events).toContainEqual({
+      type: "riichi",
+      seat: 0,
+      doubleRiichi: true,
+      doubleStake: false,
+      open: true,
+    });
+  });
+
+  it("オープンリーチで和了するとオープンリーチの1翻が付く", () => {
+    let state = start({ hands, live: "3z9p9p2z9s9s4z" });
+    state = giri(openRiichi(state, "3z"), 5);
+    state = act(state, { type: "tsumo", seat: 0 });
+    expect(yakuNames(state)).toEqual([
+      "doubleRiichi",
+      "menzenTsumo",
+      "openRiichi",
+    ]);
+  });
+
+  it("宣言牌でロンされたオープンリーチは成立せず、供託も出さない", () => {
+    let state = start({
+      hands: ["111p999p111s44z5s3z", TANYAO_TANKI, JUNK_A],
+      live: "3z",
+    });
+    state = openRiichi(state, "5s");
+    state = act(state, { type: "ron", seat: 1 });
+    expect(state.points).toEqual([29000, 31000, 30000]);
+    expect(state.kyotaku).toBe(0);
   });
 
   it("持ち点が足りなくても宣言でき、マイナスになる", () => {

@@ -30,6 +30,7 @@ export * from "./state";
 const START_POINTS = 30000;
 const RIICHI_STAKE = 1000;
 const DOUBLE_STAKE = 5000;
+const OPEN_STAKE = 2000;
 const MAX_KANS = 4;
 
 export interface RoundSetup {
@@ -243,6 +244,13 @@ export function legalActions(state: RoundState, seat: Seat): Action[] {
         if (canDoubleStake(state, seat)) {
           actions.push({ type: "riichi", seat, tile, doubleStake: true });
         }
+        actions.push({
+          type: "riichi",
+          seat,
+          tile,
+          doubleStake: false,
+          open: true,
+        });
       }
       for (const kind of ankanKinds(state, seat)) {
         actions.push({ type: "ankan", seat, kind });
@@ -286,7 +294,8 @@ function isAllowed(state: RoundState, action: Action): boolean {
       return (
         discardableTiles(state, seat).includes(action.tile) &&
         canRiichiWith(state, seat, action.tile) &&
-        (!action.doubleStake || canDoubleStake(state, seat))
+        (!action.doubleStake || canDoubleStake(state, seat)) &&
+        !(action.doubleStake && action.open)
       );
     case "tsumo":
       return canTsumo(state, seat);
@@ -360,7 +369,7 @@ export function applyAction(current: RoundState, action: Action): Step {
       discard(state, seat, action.tile, null, events);
       break;
     case "riichi":
-      discard(state, seat, action.tile, action.doubleStake, events);
+      discard(state, seat, action.tile, action, events);
       break;
     case "tsumo":
       settleTsumo(state, seat, events);
@@ -473,16 +482,25 @@ function isFuriten(
   return state.rivers[seat].some((d) => waits.includes(tileOf(d.tile).kind));
 }
 
+/** リーチ宣言で供託する点数。宣言でなければ null。 */
+function riichiStake(
+  declaration: { doubleStake: boolean; open?: true } | null,
+): number | null {
+  if (!declaration) return null;
+  if (declaration.doubleStake) return DOUBLE_STAKE;
+  return declaration.open ? OPEN_STAKE : RIICHI_STAKE;
+}
+
 function discard(
   state: RoundState,
   seat: Seat,
   tile: TileId,
-  /** リーチ宣言なら2倍リーチかどうか。宣言でなければ null。 */
-  riichiDoubleStake: boolean | null,
+  /** リーチ宣言ならその種類。宣言でなければ null。 */
+  declaration: { doubleStake: boolean; open?: true } | null,
   events: RoundEvent[],
 ): void {
   const tsumogiri = tile === state.drawn;
-  const declaring = riichiDoubleStake !== null;
+  const declaring = declaration !== null;
   const firstDiscard = state.rivers[seat].length === 0;
 
   removeFromHand(state, seat, [tile]);
@@ -497,10 +515,11 @@ function discard(
   state.tempFuriten[seat] = false;
   const current = state.riichi[seat];
   if (current) current.ippatsu = false;
-  if (declaring) {
+  if (declaration) {
     state.riichi[seat] = {
       doubleRiichi: firstDiscard && !state.anyCall,
-      doubleStake: riichiDoubleStake,
+      doubleStake: declaration.doubleStake,
+      ...(declaration.open && { open: true }),
       ippatsu: true,
       furiten: false,
     };
@@ -520,11 +539,7 @@ function discard(
     options: [null, null, null],
     responses: [null, null, null],
     waiting: [],
-    riichiStake: declaring
-      ? riichiDoubleStake
-        ? DOUBLE_STAKE
-        : RIICHI_STAKE
-      : null,
+    riichiStake: riichiStake(declaration),
   };
   // 最後の打牌は鳴けない
   const callable = state.wall.live.length > 0;
@@ -608,6 +623,7 @@ function resolveDiscard(state: RoundState, events: RoundEvent[]): void {
       seat: discarder,
       doubleRiichi: riichi.doubleRiichi,
       doubleStake: riichi.doubleStake,
+      ...(riichi.open && { open: true }),
     });
   }
 

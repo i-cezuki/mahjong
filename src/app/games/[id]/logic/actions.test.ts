@@ -9,6 +9,7 @@ const turn: TableAction[] = [
   { type: "discard", seat, tile: 20 },
   { type: "riichi", seat, tile: 20, doubleStake: false },
   { type: "riichi", seat, tile: 20, doubleStake: true },
+  { type: "riichi", seat, tile: 20, doubleStake: false, open: true },
   { type: "ankan", seat, kind: "3p" },
   { type: "kakan", seat, tile: 30 },
 ];
@@ -26,6 +27,7 @@ describe("buildMenu", () => {
     expect(menu.discards).toEqual([10, 20]);
     expect(menu.riichiTiles).toEqual([20]);
     expect(menu.doubleRiichiTiles).toEqual([20]);
+    expect(menu.openRiichiTiles).toEqual([20]);
     expect(menu.tsumo).toEqual({ type: "tsumo", seat });
     expect(menu.ankans).toHaveLength(1);
     expect(menu.kakans).toHaveLength(1);

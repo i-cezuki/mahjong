@@ -48,6 +48,7 @@ export function roundLabel(roundIndex: number, honba: number): string {
 
 export const YAKU_LABELS: Record<YakuName, string> = {
   riichi: "リーチ",
+  openRiichi: "オープンリーチ",
   doubleRiichi: "ダブルリーチ",
   ippatsu: "一発",
   menzenTsumo: "門前清自摸和",

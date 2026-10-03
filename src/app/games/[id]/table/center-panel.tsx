@@ -51,13 +51,15 @@ function Score({
         </span>
         {diff !== null ? signed(diff) : view.points[seat].toLocaleString()}
       </span>
-      {/* リーチ棒。2倍リーチは金色 */}
+      {/* リーチ棒。2倍リーチは金色、オープンリーチは桃色 */}
       <span
         className={`mt-1 h-1 w-12 rounded-full ${
           riichi
             ? riichi.doubleStake
               ? "bg-amber-400"
-              : "bg-white"
+              : riichi.open
+                ? "bg-pink-400"
+                : "bg-white"
             : "bg-transparent"
         }`}
       />

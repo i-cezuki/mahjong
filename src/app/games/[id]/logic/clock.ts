@@ -3,7 +3,7 @@ import type { PlayerView } from "@/server/table";
 
 /**
  * フェーズ8より前に保存された画面データ（終わった対局など）には持ち時間の項目がない。
- * 期限なし、自動なしとして補う。
+ * 期限なし、自動なしとして補う。オープンリーチの手牌も、それより前の画面データにはない。
  */
 export function withClockFields(view: PlayerView): PlayerView {
   const raw: Partial<PlayerView> = view;
@@ -13,6 +13,8 @@ export function withClockFields(view: PlayerView): PlayerView {
     serverNow: raw.serverNow ?? 0,
     bank: raw.bank ?? 0,
     auto: raw.auto ?? [false, false, false],
+    // オープンリーチより前に保存された画面データにはない
+    openHands: raw.openHands ?? [null, null, null],
   };
 }
 
