@@ -5,6 +5,8 @@ import type { Seat, TileId } from "@/engine";
 import type { PlayerView, TableAction } from "@/server/table";
 import { autoAction, buildMenu, tsumogiriAction } from "../logic/actions";
 import type { AutoSettings } from "../logic/actions";
+import { isDoubleTap } from "../logic/double-tap";
+import type { Tap } from "../logic/double-tap";
 import { seatLayout } from "../logic/seats";
 import { ActionBar, Toggles } from "./action-bar";
 import { CallCutin } from "./call-cutin";
@@ -38,9 +40,6 @@ export interface TableScreenProps {
   /** サーバーの現在時刻の見積もり。残り時間の表示に使う */
   serverTime: () => number;
 }
-
-/** 2回のタップをツモ切りとみなす間隔 */
-const DOUBLE_TAP_MS = 350;
 
 const peekButton =
   "h-8 rounded border border-foreground/40 bg-background/90 px-3 text-xs hover:bg-foreground/10";
@@ -130,21 +129,22 @@ function Table({
     send,
   ]);
 
-  // 手牌やボタン以外の場所を素早く2回タップしたら、ツモ牌をそのまま切る。
+  // 手牌やボタン以外の同じ場所を素早く2回タップしたら、ツモ牌をそのまま切る。
   // 卓の外の余白でも効くように、画面全体のタップを見る
   const canTsumogiri = !busy && !mine.staging && mode === null && !view.outcome;
   const tsumogiri = canTsumogiri
     ? tsumogiriAction(view.actions, view.drawn)
     : null;
-  const lastTap = useRef(-Infinity);
+  const lastTap = useRef<Tap | null>(null);
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       const onControl =
         event.target instanceof Element &&
         event.target.closest("button, a") !== null;
-      const quick = event.timeStamp - lastTap.current <= DOUBLE_TAP_MS;
+      const tap = { time: event.timeStamp, x: event.clientX, y: event.clientY };
+      const quick = isDoubleTap(lastTap.current, tap);
       // ボタンのタップと、ツモ切りに使った2回目のタップは、次の1回目に数えない
-      lastTap.current = onControl || quick ? -Infinity : event.timeStamp;
+      lastTap.current = onControl || quick ? null : tap;
       if (!onControl && quick && tsumogiri) send(tsumogiri);
     };
     document.addEventListener("click", onClick);

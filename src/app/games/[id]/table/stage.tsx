@@ -12,35 +12,40 @@ function subscribe(onChange: () => void) {
   return () => window.removeEventListener("resize", onChange);
 }
 
+/** スマホを縦に持っている */
+const PHONE_PORTRAIT = "(max-width: 700px) and (orientation: portrait)";
+
+function isTurned() {
+  return window.matchMedia(PHONE_PORTRAIT).matches;
+}
+
 function fitScale() {
-  return Math.min(
-    window.innerWidth / STAGE_WIDTH,
-    window.innerHeight / STAGE_HEIGHT,
-  );
+  const [width, height] = isTurned()
+    ? [window.innerHeight, window.innerWidth]
+    : [window.innerWidth, window.innerHeight];
+  return Math.min(width / STAGE_WIDTH, height / STAGE_HEIGHT);
 }
 
 /**
  * 卓を画面いっぱいに拡大縮小して中央に置く。スマホでもPCでも同じ配置になる。
- * スマホの縦画面では卓を隠し、横にするよう促す。
+ * スマホを縦に持ったときは卓を90度回して、横画面のまま見せる（横固定）。
  */
 export function Stage({ children }: { children: ReactNode }) {
   const scale = useSyncExternalStore(subscribe, fitScale, () => 1);
+  const turned = useSyncExternalStore(subscribe, isTurned, () => false);
   // touch-manipulation：2回タップの打牌で、ブラウザの拡大が働かないようにする
   return (
     <main className="fixed inset-0 touch-manipulation overflow-hidden bg-background select-none">
       <div
-        className="absolute top-1/2 left-1/2 max-[700px]:portrait:hidden"
+        className="absolute top-1/2 left-1/2"
         style={{
           width: STAGE_WIDTH,
           height: STAGE_HEIGHT,
-          transform: `translate(-50%, -50%) scale(${scale})`,
+          transform: `translate(-50%, -50%) rotate(${turned ? 90 : 0}deg) scale(${scale})`,
         }}
       >
         {children}
       </div>
-      <p className="hidden h-full items-center justify-center text-lg max-[700px]:portrait:flex">
-        画面を横にしてください
-      </p>
     </main>
   );
 }
