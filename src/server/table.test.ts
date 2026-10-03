@@ -4,11 +4,12 @@ import {
   SEATS,
   createRng,
   startRoundFromDeck,
+  tileOf,
 } from "@/engine";
 import type { Seat, TileId } from "@/engine";
 import { buildDeck, seedOf } from "@/engine/testing";
 import { applyTableAction, buildView, parseAction, startTable } from "./table";
-import type { PlayerView, TableAction, TableState } from "./table";
+import type { PlayAction, PlayerView, TableAction, TableState } from "./table";
 
 /** 画面データの中で、牌が入る場所をすべて集める。 */
 function tilesInView(view: PlayerView): TileId[] {
@@ -52,12 +53,17 @@ function visibleTiles(table: TableState, seat: Seat): Set<TileId> {
           outcome.wins.some((win) => win.seat === s && win.result !== null),
       )
     : [];
-  // 成立したオープンリーチの手牌。ツモ牌は切るまで見せない
+  // 成立したオープンリーチの手牌。ツモ牌は切るまで見せない。
+  // 宣言牌に応答できる人には、応答するまで成立していない扱い
   const pending = round.phase === "awaitResponses" ? round.pending : null;
+  const responding =
+    pending !== null &&
+    pending.options[seat] !== null &&
+    pending.responses[seat] === null;
   const open = SEATS.filter(
     (s) =>
       round.riichi[s]?.open &&
-      !(pending?.seat === s && pending.riichiStake !== null),
+      !(responding && pending.seat === s && pending.riichiStake !== null),
   );
   return new Set([
     ...round.hands[seat],
@@ -361,6 +367,117 @@ describe("オープンリーチ", () => {
     const shown = buildView(table, 1).openHands[0]!;
     expect(shown).toHaveLength(13);
     expect(shown).not.toContain(round.drawn);
+    assertNoLeak(
+      table,
+      SEATS.map((seat) => buildView(table, seat)),
+    );
+  });
+});
+
+describe("打牌への応答待ち", () => {
+  /** 席1だけが席0の北をポンできる配牌 */
+  function ponTable(): TableState {
+    const round = startRoundFromDeck(
+      buildDeck({
+        hands: [
+          "111p234s567s789s4z",
+          "19m258p36s4z4z3z567z",
+          "19m369p25s7s23z567z",
+        ],
+        live: "3z9p9p2z",
+      }),
+      { dealer: 0 },
+    ).state;
+    const start = startTable({ seed: seedOf(1) }).table;
+    return { ...start, game: { ...start.game, round } };
+  }
+
+  const north = (table: TableState) =>
+    table.game.round.hands[0].find((id) => tileOf(id).kind === "4z")!;
+
+  const play = (table: TableState, action: PlayAction) =>
+    applyTableAction(table, action, () => seedOf(2)).table;
+
+  /** 応答待ちかどうかで変わりうる項目 */
+  const shape = (view: PlayerView) => ({
+    roundPhase: view.roundPhase,
+    turn: view.turn,
+    lastDiscard: view.lastDiscard,
+    points: view.points,
+    kyotaku: view.kyotaku,
+    openHands: view.openHands,
+    riichi: view.riichi,
+  });
+
+  it("応答できる人にだけ応答待ちが見え、ほかの人には打牌が通ったように見える", () => {
+    const start = ponTable();
+    const tile = north(start);
+    const table = play(start, { type: "discard", seat: 0, tile });
+    expect(table.game.round.phase).toBe("awaitResponses");
+
+    const responder = buildView(table, 1);
+    expect(responder.roundPhase).toBe("awaitResponses");
+    expect(responder.turn).toBe(0);
+    expect(responder.lastDiscard).toEqual({ seat: 0, tile });
+    expect(responder.actions.some((a) => a.type === "pon")).toBe(true);
+
+    // スルーされて席1の手番になったあとと、見え方が同じ
+    const passed = play(table, { type: "pass", seat: 1 });
+    for (const seat of [0, 2] as const) {
+      const view = buildView(table, seat);
+      expect(view.lastDiscard).toBeNull();
+      expect(shape(view)).toEqual(shape(buildView(passed, seat)));
+    }
+    assertNoLeak(
+      table,
+      SEATS.map((seat) => buildView(table, seat)),
+    );
+  });
+
+  it("スルーしたあとは、応答した人にも応答待ちを見せない", () => {
+    const start = ponTable();
+    const table = play(start, { type: "discard", seat: 0, tile: north(start) });
+    const round = table.game.round;
+    // ほかに応答できる人が残っている状態を作る
+    const pending = round.pending!;
+    const both: TableState = {
+      ...table,
+      game: {
+        ...table.game,
+        round: {
+          ...round,
+          pending: {
+            ...pending,
+            options: [null, pending.options[1], pending.options[1]],
+            responses: [null, { type: "pass" }, null],
+          },
+        },
+      },
+    };
+    const view = buildView(both, 1);
+    expect(view.roundPhase).toBe("awaitTurnAction");
+    expect(view.lastDiscard).toBeNull();
+    expect(buildView(both, 2).roundPhase).toBe("awaitResponses");
+  });
+
+  it("リーチの宣言牌に応答できる人がいても、ほかの人には供託とオープンリーチの手牌が先に見える", () => {
+    const start = ponTable();
+    const tile = north(start);
+    const table = play(start, {
+      type: "riichi",
+      seat: 0,
+      tile,
+      doubleStake: false,
+      open: true,
+    });
+    expect(table.game.round.phase).toBe("awaitResponses");
+    const passed = play(table, { type: "pass", seat: 1 });
+
+    expect(shape(buildView(table, 2))).toEqual(shape(buildView(passed, 2)));
+    const responder = buildView(table, 1);
+    expect(responder.points).toEqual(table.game.round.points);
+    expect(responder.kyotaku).toBe(table.game.round.kyotaku);
+    expect(responder.openHands[0]).toBeNull();
     assertNoLeak(
       table,
       SEATS.map((seat) => buildView(table, seat)),

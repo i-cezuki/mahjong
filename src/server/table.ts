@@ -4,6 +4,7 @@ import {
   TILE_KINDS,
   applyGameAction,
   legalActions,
+  nextSeat,
   startGame,
 } from "@/engine";
 import type {
@@ -96,7 +97,7 @@ export interface PlayerView {
   riichi: PerSeat<{ doubleStake: boolean; open?: true } | null>;
   /** 成立したオープンリーチの手牌。手番のツモ牌は切るまで入れない */
   openHands: PerSeat<TileId[] | null>;
-  /** 応答待ちになっている打牌 */
+  /** 応答待ちになっている打牌。応答できる人にだけ出す */
   lastDiscard: { seat: Seat; tile: TileId } | null;
 
   /** いま自分にできる操作。クライアントは合法手を自分で判定しない。 */
@@ -213,19 +214,29 @@ export function buildView(table: TableState, seat: Seat): PlayerView {
   const round = game.round;
   const outcome = round.outcome;
   const pending = round.phase === "awaitResponses" ? round.pending : null;
+  // 応答できる人がいることは、その人にしか見せない。ほかの人（スルーした人を含む）には、
+  // 全員がスルーして打牌が通ったあとのように見せる（次の人の手番、リーチ棒の供託）
+  const responding =
+    pending !== null &&
+    pending.options[seat] !== null &&
+    pending.responses[seat] === null;
+  const hidden = pending !== null && !responding ? pending : null;
+  const riichiStake = hidden?.riichiStake ?? null;
+  const points: PerSeat<number> = [...round.points];
+  if (hidden && riichiStake !== null) points[hidden.seat] -= riichiStake;
   const chance = round.phase === "diceChance" ? round.dice[0] : undefined;
 
   const view: PlayerView = {
     seat,
     phase: game.phase,
-    roundPhase: round.phase,
+    roundPhase: hidden ? "awaitTurnAction" : round.phase,
     roundIndex: game.roundIndex,
     honba: round.honba,
-    kyotaku: round.kyotaku,
+    kyotaku: round.kyotaku + (riichiStake ?? 0),
     dealer: round.dealer,
     roundWind: round.roundWind,
-    turn: round.turn,
-    points: round.points,
+    turn: hidden ? nextSeat(hidden.seat) : round.turn,
+    points,
     chips: game.chips,
     doraIndicators: round.wall.doraIndicators,
     wallCount: round.wall.live.length,
@@ -245,13 +256,14 @@ export function buildView(table: TableState, seat: Seat): PlayerView {
       };
     }),
     openHands: perSeat((s) => {
-      // 宣言牌への応答を待っている間は、まだ成立していない
-      const declaring = pending?.seat === s && pending.riichiStake !== null;
+      // 宣言牌への応答を待っている間は、まだ成立していない。応答できない人には成立したように見せる
+      const declaring =
+        responding && pending.seat === s && pending.riichiStake !== null;
       if (!round.riichi[s]?.open || declaring) return null;
       const drawn = round.turn === s ? round.drawn : null;
       return round.hands[s].filter((id) => id !== drawn);
     }),
-    lastDiscard: pending ? { seat: pending.seat, tile: pending.tile } : null,
+    lastDiscard: responding ? { seat: pending.seat, tile: pending.tile } : null,
 
     actions: actionsFor(table, seat),
 
