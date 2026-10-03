@@ -31,6 +31,26 @@ export const CALL_LABELS: Record<CallKind, string> = {
   pocchi: "ポッチ",
 };
 
+/**
+ * カットインに出す文字。ロンは、和了した人が決めゼリフを設定していればそれを出す。
+ * phrases は席ごとの決めゼリフ（設定なしは null）。
+ */
+export function callLabel(
+  call: Call,
+  phrases: readonly (string | null)[],
+): string {
+  if (call.kind === "ron") return phrases[call.seat] ?? CALL_LABELS.ron;
+  return CALL_LABELS[call.kind];
+}
+
+/** 発声の帯に収まるよう、文字数が多いほど文字を小さくする。 */
+export function callTextSize(label: string): string {
+  const length = [...label].length;
+  if (length <= 3) return "text-5xl";
+  if (length <= 5) return "text-4xl";
+  return "text-3xl";
+}
+
 /** 和了の発声。出している間は、局の結果を出すのを待つ。 */
 export function isWinCall(call: Call): boolean {
   return call.kind === "ron" || call.kind === "tsumo" || isJackpotCall(call);

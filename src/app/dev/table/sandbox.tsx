@@ -23,6 +23,8 @@ import type {
 
 const ME: Seat = 0;
 const NAMES = ["じぶん", "しもちゃ", "かみちゃ"];
+/** 決めゼリフの見た目を確かめるため、下家だけ一番長い8文字にしておく */
+const RON_PHRASES = [null, "それロンでござる", null];
 const FIRST_SEED = "07".repeat(32);
 const BOT_DELAY_MS = 350;
 
@@ -281,6 +283,7 @@ export function Sandbox() {
         view={withFake(buildView(table, ME), fake)}
         version={version}
         names={NAMES}
+        ronPhrases={RON_PHRASES}
         roomCode={null}
         busy={false}
         error={error}

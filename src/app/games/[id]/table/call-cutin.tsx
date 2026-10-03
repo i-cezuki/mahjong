@@ -1,7 +1,13 @@
 import { useEffect } from "react";
 import type { CSSProperties } from "react";
 import type { Seat } from "@/engine";
-import { CALL_LABELS, isJackpotCall, isWinCall } from "../logic/calls";
+import {
+  CALL_LABELS,
+  callLabel,
+  callTextSize,
+  isJackpotCall,
+  isWinCall,
+} from "../logic/calls";
 import type { Call } from "../logic/calls";
 import type { SeatLayout } from "../logic/seats";
 
@@ -87,10 +93,13 @@ export function CallCutin({
   calls,
   layout,
   names,
+  ronPhrases,
 }: {
   calls: readonly Call[];
   layout: SeatLayout;
   names: string[];
+  /** 席ごとのロンの決めゼリフ。設定なしは null */
+  ronPhrases: readonly (string | null)[];
 }) {
   return (
     <>
@@ -118,8 +127,15 @@ export function CallCutin({
             <span className="max-w-[240px] skew-x-12 truncate text-xs opacity-80">
               {names[call.seat]}
             </span>
-            <span className="skew-x-12 text-5xl leading-tight font-black tracking-widest">
-              {CALL_LABELS[call.kind]}
+            <span
+              className={`skew-x-12 ${
+                // 決めゼリフは長いことがあるので、帯に収まる大きさにする
+                call.kind === "ron"
+                  ? callTextSize(callLabel(call, ronPhrases))
+                  : "text-5xl"
+              } leading-tight font-black tracking-widest whitespace-nowrap`}
+            >
+              {callLabel(call, ronPhrases)}
             </span>
           </div>
         ),

@@ -32,6 +32,8 @@ export interface TableScreenProps {
   /** 画面データの版番号。牌の選択と自動操作を、更新のたびにやり直すために使う */
   version: number;
   names: string[];
+  /** 席ごとのロンの決めゼリフ。設定なしは null */
+  ronPhrases: readonly (string | null)[];
   roomCode: string | null;
   busy: boolean;
   error: string | null;
@@ -58,6 +60,7 @@ function Table({
   view,
   version,
   names,
+  ronPhrases,
   roomCode,
   busy,
   error,
@@ -384,7 +387,12 @@ function Table({
         </button>
       )}
       <TedashiBubble seats={tedashi} layout={layout} />
-      <CallCutin calls={calls} layout={layout} names={names} />
+      <CallCutin
+        calls={calls}
+        layout={layout}
+        names={names}
+        ronPhrases={ronPhrases}
+      />
       {myAuto && view.phase === "playing" && (
         <button
           type="button"

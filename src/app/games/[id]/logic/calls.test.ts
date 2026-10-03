@@ -5,7 +5,14 @@ import { buildDeck, seedOf } from "@/engine/testing";
 import type { DeckSpec } from "@/engine/testing";
 import { buildView, startTable } from "@/server/table";
 import type { PlayerView, TableState } from "@/server/table";
-import { detectCalls, detectTedashi, isJackpotCall, isWinCall } from "./calls";
+import {
+  callLabel,
+  callTextSize,
+  detectCalls,
+  detectTedashi,
+  isJackpotCall,
+  isWinCall,
+} from "./calls";
 
 /** 親が席0の局を、牌の並びを決めて始める。操作のたびに席2から見た画面データを返す。 */
 function scenario(deck: DeckSpec) {
@@ -209,5 +216,40 @@ describe("detectTedashi（相手の手出しの検出）", () => {
     expect(detectTedashi(before, before)).toEqual([]);
     const after = { ...s.cut(0, "1z"), honba: before.honba + 1 };
     expect(detectTedashi(before, after)).toEqual([]);
+  });
+});
+
+describe("callLabel（発声の文字）", () => {
+  const phrases = ["それだ!", null, null];
+
+  it("ロンは、和了した人の決めゼリフを出す", () => {
+    expect(callLabel({ seat: 0, kind: "ron" }, phrases)).toBe("それだ!");
+  });
+
+  it("決めゼリフがない人のロンは、ロンと出す", () => {
+    expect(callLabel({ seat: 1, kind: "ron" }, phrases)).toBe("ロン");
+  });
+
+  it("ロン以外の発声は、決めゼリフがあっても変えない", () => {
+    expect(callLabel({ seat: 0, kind: "tsumo" }, phrases)).toBe("ツモ");
+    expect(callLabel({ seat: 0, kind: "pon" }, phrases)).toBe("ポン");
+  });
+});
+
+describe("callTextSize（発声の文字の大きさ）", () => {
+  it("3文字までは大きく出す", () => {
+    expect(callTextSize("ロン")).toBe("text-5xl");
+    expect(callTextSize("ツモ!")).toBe("text-5xl");
+  });
+
+  it("長いほど小さくして、帯に収める", () => {
+    expect(callTextSize("リーチだ")).toBe("text-4xl");
+    expect(callTextSize("それロンだ")).toBe("text-4xl");
+    expect(callTextSize("オープンリーチ")).toBe("text-3xl");
+    expect(callTextSize("あ".repeat(8))).toBe("text-3xl");
+  });
+
+  it("絵文字も1文字として数える", () => {
+    expect(callTextSize("🀄🀄🀄")).toBe("text-5xl");
   });
 });

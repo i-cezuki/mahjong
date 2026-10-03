@@ -24,6 +24,7 @@ export function GameClient({
   gameId,
   roomCode,
   names,
+  ronPhrases,
   initialVersion,
   initialView,
   renderedAt,
@@ -31,6 +32,8 @@ export function GameClient({
   gameId: string;
   roomCode: string | null;
   names: string[];
+  /** 席ごとのロンの決めゼリフ。設定なしは null */
+  ronPhrases: (string | null)[];
   initialVersion: number;
   initialView: PlayerView;
   /** サーバーがこのページを描いた時刻。サーバーの時計との差の見積もりに使う */
@@ -134,6 +137,7 @@ export function GameClient({
       // 先に出している間は別の版として扱い、牌の選択や発声の検出をやり直させる
       version={ahead ? version + 0.5 : version}
       names={names}
+      ronPhrases={ronPhrases}
       roomCode={roomCode}
       busy={busy}
       error={error}

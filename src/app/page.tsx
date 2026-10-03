@@ -37,6 +37,9 @@ export default async function Home() {
         <Link href="/stats" className={subtleButtonClass}>
           成績
         </Link>
+        <Link href="/settings" className={subtleButtonClass}>
+          設定
+        </Link>
         {viewer.isAdmin && (
           <Link href="/admin" className={subtleButtonClass}>
             承認

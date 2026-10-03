@@ -46,7 +46,7 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
   const [profiles, room] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, display_name")
+      .select("id, display_name, ron_phrase")
       .in("id", game.data.player_ids),
     supabase
       .from("rooms")
@@ -54,15 +54,20 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
       .eq("id", game.data.room_id)
       .maybeSingle(),
   ]);
-  const nameOf = new Map(
-    (profiles.data ?? []).map((profile) => [profile.id, profile.display_name]),
+  const profileOf = new Map(
+    (profiles.data ?? []).map((profile) => [profile.id, profile]),
   );
 
   return (
     <GameClient
       gameId={id}
       roomCode={room.data?.code ?? null}
-      names={game.data.player_ids.map((pid) => nameOf.get(pid) ?? "（不明）")}
+      names={game.data.player_ids.map(
+        (pid) => profileOf.get(pid)?.display_name ?? "（不明）",
+      )}
+      ronPhrases={game.data.player_ids.map(
+        (pid) => profileOf.get(pid)?.ron_phrase ?? null,
+      )}
       initialVersion={row.data.version}
       initialView={row.data.view as unknown as PlayerView}
       renderedAt={serverNow()}

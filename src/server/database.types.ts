@@ -263,6 +263,7 @@ export type Database = {
           display_name: string | null;
           id: string;
           is_admin: boolean;
+          ron_phrase: string | null;
         };
         Insert: {
           approved?: boolean;
@@ -270,6 +271,7 @@ export type Database = {
           display_name?: string | null;
           id: string;
           is_admin?: boolean;
+          ron_phrase?: string | null;
         };
         Update: {
           approved?: boolean;
@@ -277,6 +279,7 @@ export type Database = {
           display_name?: string | null;
           id?: string;
           is_admin?: boolean;
+          ron_phrase?: string | null;
         };
         Relationships: [];
       };

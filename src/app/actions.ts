@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { requireAdmin, requireViewer } from "@/server/auth";
-import { parseDisplayName } from "@/server/profile-rules";
+import { requireAdmin, requireApproved, requireViewer } from "@/server/auth";
+import { parseDisplayName, parseRonPhrase } from "@/server/profile-rules";
 import { createAdminClient, createSessionClient } from "@/server/supabase";
 
 const UNIQUE_VIOLATION = "23505";
@@ -57,6 +57,38 @@ export async function saveDisplayName(
     };
   }
   redirect("/");
+}
+
+export interface RonPhraseState {
+  error: string | null;
+  /** 保存できたときだけ true。設定画面に「保存しました」と出す */
+  saved: boolean;
+  value: string;
+}
+
+/** ロンの決めゼリフを保存する。空なら設定を消して「ロン」に戻す。 */
+export async function saveRonPhrase(
+  _previous: RonPhraseState,
+  formData: FormData,
+): Promise<RonPhraseState> {
+  const viewer = await requireApproved();
+  const input = formData.get("ronPhrase");
+  const value = typeof input === "string" ? input : "";
+  const parsed = parseRonPhrase(input);
+  if (!parsed.ok) return { error: parsed.error, saved: false, value };
+
+  const { error } = await createAdminClient()
+    .from("profiles")
+    .update({ ron_phrase: parsed.phrase })
+    .eq("id", viewer.id);
+  if (error) {
+    return {
+      error: "保存できませんでした。もう一度お試しください",
+      saved: false,
+      value,
+    };
+  }
+  return { error: null, saved: true, value: parsed.phrase ?? "" };
 }
 
 /** 管理者がユーザーを承認する。 */
