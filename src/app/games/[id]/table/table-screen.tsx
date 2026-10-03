@@ -100,8 +100,13 @@ function Table({
 
   const [pinnedTile, setPinnedTile] = useState<Pinned<TileId> | null>(null);
   const [pinnedMode, setPinnedMode] = useState<Pinned<PickMode> | null>(null);
-  const selected = pinnedTile?.version === version ? pinnedTile.value : null;
   const mode = pinnedMode?.version === version ? pinnedMode.value : null;
+  // 自分の番でないときに浮かせた牌。ほかの人が切っても下げず、自分の番が来るか局が変わるまで残す
+  const deal = `${view.roundIndex}:${view.honba}`;
+  const [heldTile, setHeldTile] = useState<{
+    deal: string;
+    value: TileId;
+  } | null>(null);
   /** 局の結果を閉じて卓を見ている */
   const [peeking, setPeeking] = useState(false);
 
@@ -166,8 +171,29 @@ function Table({
         : mode === "riichi"
           ? menu.riichiTiles
           : menu.discards;
+  /** いま切れる牌が無い。手牌のどれでも浮かせるだけはできる */
+  const offTurn = pickable.length === 0;
+  // 自分の番が来たら下げる。1回のタップで切ってしまわないように
+  if (!offTurn && heldTile) setHeldTile(null);
+  const held =
+    offTurn && heldTile?.deal === deal && mine.hand.includes(heldTile.value)
+      ? heldTile.value
+      : null;
+  const selected =
+    (pinnedTile?.version === version ? pinnedTile.value : null) ?? held;
+
+  /** 指を滑らせて乗った牌を浮かせる。切るのはタップだけ */
+  function slide(tile: TileId) {
+    if (offTurn) setHeldTile({ deal, value: tile });
+    else setPinnedTile({ version, value: tile });
+  }
 
   function tap(tile: TileId) {
+    if (offTurn) {
+      // 同じ牌をもう一度タップしたら下げる
+      setHeldTile(tile === held ? null : { deal, value: tile });
+      return;
+    }
     if (busy) return;
     if (tile !== selected) {
       setPinnedTile({ version, value: tile });
@@ -302,10 +328,11 @@ function Table({
         <MyHand
           hand={mine.hand}
           drawn={mine.drawn}
-          pickable={pickable}
+          pickable={offTurn ? mine.hand : pickable}
           dimOthers={riichi}
           selected={selected}
           onTap={tap}
+          onSlide={slide}
         />
       </div>
       <div className="absolute right-3 bottom-1">

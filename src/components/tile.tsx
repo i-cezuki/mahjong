@@ -68,7 +68,7 @@ export function Tile({
     <TileBox
       width={width}
       rotation={rotation}
-      className={`transition-transform duration-100 ${raised ? "-translate-y-2.5" : ""} ${dimmed ? "opacity-40" : ""}`}
+      className={`transition-transform duration-100 ${raised ? "-translate-y-3.5" : ""} ${dimmed ? "opacity-40" : ""}`}
     >
       <span className="block h-full w-full rounded-[5px] bg-[#fffaf0] shadow-[0_1px_0_rgba(255,255,255,0.75)_inset,0_3px_7px_rgba(0,0,0,0.32)] ring-1 ring-slate-950/25">
         <Image
