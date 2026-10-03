@@ -22,6 +22,7 @@ import { River } from "./river";
 import { RoundResult, signed } from "./round-result";
 import { Stage } from "./stage";
 import { TedashiBubble } from "./tedashi-bubble";
+import { useAutoSettings } from "./use-auto-settings";
 import { useCalls, useTedashi } from "./use-calls";
 import { useDicePlayback } from "./use-dice-playback";
 import { useFlowerReveal } from "./use-flower-reveal";
@@ -414,10 +415,7 @@ function Table({
 /** 対局の画面。画面データを描くだけで、通信はしない。 */
 export function TableScreen(props: TableScreenProps) {
   // 切り替えボタンは局をまたいで保つ。それ以外の状態は局ごとに作り直す
-  const [settings, setSettings] = useState<AutoSettings>({
-    autoWin: false,
-    noCall: false,
-  });
+  const [settings, setSettings] = useAutoSettings(props.gameId);
   return (
     <Stage>
       <Table
