@@ -10,6 +10,14 @@ export function withClockFields(view: PlayerView): PlayerView {
   return {
     ...view,
     deadline: raw.deadline ?? null,
+    // 席ごとの期限より前の画面データでは、待たれている人の期限は共通の1つだった
+    myDeadline:
+      raw.myDeadline !== undefined
+        ? raw.myDeadline
+        : view.actions.length > 0
+          ? (raw.deadline ?? null)
+          : null,
+    startedAt: raw.startedAt ?? null,
     serverNow: raw.serverNow ?? 0,
     bank: raw.bank ?? 0,
     auto: raw.auto ?? [false, false, false],
@@ -33,17 +41,29 @@ export function estimateOffset(
   return previous === null ? sample : Math.min(previous, sample);
 }
 
+export interface ClockDisplay {
+  /** 表示する秒数 */
+  seconds: number;
+  /** 基本の時間を使い切り、持ち時間（長考）を使っている */
+  reserve: boolean;
+}
+
 /**
- * 残り時間の表示。
- * @param bankMs 手番のときの自分の持ち時間。手番以外は null。
- *   手番では、基本の時間が残っている間はその秒数、切れたら持ち時間を「+12」の形で出す。
+ * 残り時間の表示。期限はサーバーの時刻なので、表示がずれても進行は変わらない。
+ * @param bankMs 手番と応答のときの自分の持ち時間。サイコロの指定と局の結果は null。
+ *   基本の時間が残っている間はその秒数（5→1）、切れたら持ち時間の秒数（長考 20→）を出す。
  */
-export function clockLabel(remainingMs: number, bankMs: number | null): string {
+export function clockDisplay(
+  remainingMs: number,
+  bankMs: number | null,
+): ClockDisplay {
   const seconds = (ms: number) => Math.max(0, Math.ceil(ms / 1000));
-  if (bankMs === null || bankMs === 0) return String(seconds(remainingMs));
+  if (bankMs === null || bankMs === 0) {
+    return { seconds: seconds(remainingMs), reserve: false };
+  }
   return remainingMs > bankMs
-    ? String(seconds(remainingMs - bankMs))
-    : `+${seconds(remainingMs)}`;
+    ? { seconds: seconds(remainingMs - bankMs), reserve: false }
+    : { seconds: seconds(remainingMs), reserve: true };
 }
 
 /** 期限を過ぎてから時間切れを申告するまでの間。3人が同時に送らないよう席でずらす。 */

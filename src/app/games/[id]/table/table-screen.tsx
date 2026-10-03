@@ -85,10 +85,15 @@ function Table({
   const myAuto = view.auto[view.seat];
   // 自分が待たれているときだけ、残り時間を出す
   const clock =
-    view.deadline !== null && view.actions.length > 0 && !myAuto ? (
+    view.myDeadline !== null && view.actions.length > 0 && !myAuto ? (
       <ClockBadge
-        deadline={view.deadline}
-        bank={view.roundPhase === "awaitTurnAction" ? view.bank : null}
+        deadline={view.myDeadline}
+        bank={
+          view.roundPhase === "awaitTurnAction" ||
+          view.roundPhase === "awaitResponses"
+            ? view.bank
+            : null
+        }
         serverTime={serverTime}
       />
     ) : null;

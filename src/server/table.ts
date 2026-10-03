@@ -26,9 +26,13 @@ import type {
 export interface Clock {
   /** この状態を保存したサーバーの時刻（エポックms） */
   savedAt: number;
-  /** いま待っている操作の期限（エポックms）。待っていなければ null */
+  /** いまの待ちが始まった時刻（エポックms）。待っていなければ null */
+  startedAt: number | null;
+  /** 待たれている人ごとの期限（エポックms）。待たれていない人は null */
+  deadlines: PerSeat<number | null>;
+  /** deadlines のうち最も早いもの。時間切れの申告はこの時刻を過ぎてから送る */
   deadline: number | null;
-  /** 残り持ち時間（ms）。局が変わると戻る */
+  /** 残り持ち時間（長考、ms）。手番と応答で共有し、局が変わると戻る */
   bank: PerSeat<number>;
   /** 即ツモ切り中。時間切れでなり、本人の操作で解除する */
   auto: PerSeat<boolean>;
@@ -107,8 +111,12 @@ export interface PlayerView {
   confirmed: PerSeat<boolean>;
   result: GameResult | null;
 
-  /** いま待っている操作の期限（サーバーの時刻、エポックms）。待っていなければ null */
+  /** 3人のうち最も早い期限（サーバーの時刻、エポックms）。時間切れの申告に使う。待っていなければ null */
   deadline: number | null;
+  /** 自分の期限。自分が待たれていなければ null */
+  myDeadline: number | null;
+  /** いまの待ちが始まった時刻 */
+  startedAt: number | null;
   /** この画面データを保存したサーバーの時刻。画面はこれとの差で残り時間を計算する */
   serverNow: number;
   /** 自分の残り持ち時間（ms） */
@@ -263,6 +271,8 @@ export function buildView(table: TableState, seat: Seat): PlayerView {
     result: game.result,
 
     deadline: table.clock?.deadline ?? null,
+    myDeadline: table.clock?.deadlines[seat] ?? null,
+    startedAt: table.clock?.startedAt ?? null,
     serverNow: table.clock?.savedAt ?? 0,
     bank: table.clock?.bank[seat] ?? 0,
     auto: table.clock?.auto ?? [false, false, false],

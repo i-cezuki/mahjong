@@ -20,7 +20,7 @@ export function optimisticView(
   action: TableAction,
 ): PlayerView | null {
   const { seat } = action;
-  const waiting = { actions: [], deadline: null };
+  const waiting = { actions: [], deadline: null, myDeadline: null };
 
   switch (action.type) {
     case "discard":

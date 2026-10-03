@@ -96,6 +96,7 @@ const VIEW_KEYS = [
   "kyotaku",
   "lastDiscard",
   "melds",
+  "myDeadline",
   "openHands",
   "outcome",
   "phase",
@@ -109,6 +110,7 @@ const VIEW_KEYS = [
   "roundWind",
   "seat",
   "serverNow",
+  "startedAt",
   "turn",
   "wallCount",
 ];
@@ -425,6 +427,8 @@ describe("持ち時間の項目", () => {
       ...start,
       clock: {
         savedAt: 5_000,
+        startedAt: 4_000,
+        deadlines: [null, 12_000, 9_000],
         deadline: 9_000,
         bank: [11_111, 22_222, 33_333],
         auto: [false, true, false],
@@ -432,6 +436,9 @@ describe("持ち時間の項目", () => {
     };
     const view = buildView(table, 1);
     expect(view.deadline).toBe(9_000);
+    expect(view.myDeadline).toBe(12_000);
+    expect(view.startedAt).toBe(4_000);
+    expect(buildView(table, 0).myDeadline).toBeNull();
     expect(view.serverNow).toBe(5_000);
     expect(view.bank).toBe(22_222);
     expect(view.auto).toEqual([false, true, false]);
@@ -455,6 +462,8 @@ describe("持ち時間の項目", () => {
     const start = startTable({ seed: seedOf(1) }).table;
     const clock = {
       savedAt: 1,
+      startedAt: 1,
+      deadlines: [2, null, null] as [number | null, null, null],
       deadline: 2,
       bank: [3, 4, 5] as [number, number, number],
       auto: [false, false, false] as [boolean, boolean, boolean],

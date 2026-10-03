@@ -83,7 +83,12 @@ describe("optimisticView（操作の先取り表示）", () => {
     const table = tenpaiTable();
     const view = buildView(table, 0);
     const guess = optimisticView(view, { type: "pass", seat: 0 })!;
-    expect(guess).toEqual({ ...view, actions: [], deadline: null });
+    expect(guess).toEqual({
+      ...view,
+      actions: [],
+      deadline: null,
+      myDeadline: null,
+    });
   });
 
   it("局の結果の確認は、自分を確認済みにする", () => {

@@ -2,12 +2,11 @@ import { IllegalActionError, SEATS } from "@/engine";
 import type { PerSeat, Seat } from "@/engine";
 import {
   BANK_MS,
+  BASE_MS,
   DICE_CHOICE_MS,
   DICE_STEP_MS,
   FIRST_TURN_GRACE_MS,
-  RESPONSE_MS,
   RESULT_MS,
-  TURN_BASE_MS,
 } from "@/lib/timing";
 import { actionsFor, applyTableAction } from "./table";
 import type {
@@ -21,6 +20,10 @@ import type {
 /*
  * 持ち時間のルール。エンジンは時刻を知らないので、ここで期限と自動処理を決める。
  * UI、DB、通信には依存しない。現在時刻と乱数は呼び出す側が渡す。
+ *
+ * 手番の操作と他家の打牌への応答は、判断のたびに「基本5秒＋その人の残り持ち時間」。
+ * 基本の5秒を超えた分だけ持ち時間（長考）が減り、局が変わると3人とも20秒に戻る。
+ * 応答できる人が2人いれば、それぞれに期限を付け、2人の判断がそろうか時間切れになってから解決する。
  */
 
 export interface ClockContext {
@@ -41,45 +44,94 @@ export interface TimedStep {
 
 const fullBank = (): PerSeat<number> => [BANK_MS, BANK_MS, BANK_MS];
 
+const noSeats = (): PerSeat<number | null> => [null, null, null];
+
 /** 持ち時間が満ちていて、誰も自動でなく、まだ何も待っていない時計。 */
 const newClock = (now: number): Clock => ({
   savedAt: now,
+  startedAt: null,
+  deadlines: noSeats(),
   deadline: null,
   bank: fullBank(),
   auto: [false, false, false],
 });
 
-/** 書き換えてよい写しを作る。clock のない状態（フェーズ8より前に始まった対局）には初期値を補う。 */
-function timed(table: TableState, now: number): TimedTable {
-  const clock = table.clock;
-  return {
-    ...table,
-    clock: clock
-      ? { ...clock, bank: [...clock.bank], auto: [...clock.auto] }
-      : newClock(now),
-  };
-}
-
 function waitedSeats(table: TableState): Seat[] {
   return SEATS.filter((seat) => actionsFor(table, seat).length > 0);
 }
 
+/** 最も早い期限。誰も待っていなければ null。 */
+function earliest(deadlines: PerSeat<number | null>): number | null {
+  const set = deadlines.filter((d): d is number => d !== null);
+  return set.length > 0 ? Math.min(...set) : null;
+}
+
 /**
- * いまの待ちの長さ。
+ * 書き換えてよい写しを作る。clock のない状態（フェーズ8より前に始まった対局）には初期値を補う。
+ * 席ごとの期限がない状態（応答にも持ち時間を使うより前に保存された対局）は、待たれている人全員に共通の期限を付けて補う。
+ */
+function timed(table: TableState, now: number): TimedTable {
+  const clock = table.clock;
+  if (!clock) return { ...table, clock: newClock(now) };
+  const legacy: Partial<Clock> = clock;
+  const waited = waitedSeats(table);
+  const deadlines: PerSeat<number | null> = legacy.deadlines
+    ? [...legacy.deadlines]
+    : ([0, 1, 2].map((s) =>
+        clock.deadline !== null && waited.includes(s as Seat)
+          ? clock.deadline
+          : null,
+      ) as PerSeat<number | null>);
+  return {
+    ...table,
+    clock: {
+      ...clock,
+      startedAt:
+        legacy.startedAt !== undefined
+          ? legacy.startedAt
+          : clock.deadline === null
+            ? null
+            : clock.savedAt,
+      deadlines,
+      bank: [...clock.bank],
+      auto: [...clock.auto],
+    },
+  };
+}
+
+/** 持ち時間（長考）を使う判断か。サイコロの指定と局の結果は決まった長さで、持ち時間を使わない。 */
+function usesBank(table: TableState): boolean {
+  const { phase } = table.game.round;
+  return phase === "awaitTurnAction" || phase === "awaitResponses";
+}
+
+/**
+ * その席のいまの待ちの長さ。
  * @param diceThrows この保存で振ったサイコロの回数。画面の演出が終わるまでの分を足す。
  */
-function waitMs(table: TimedTable, diceThrows: number): number {
-  const round = table.game.round;
-  switch (round.phase) {
+function waitMs(table: TimedTable, seat: Seat, diceThrows: number): number {
+  switch (table.game.round.phase) {
     case "awaitTurnAction":
-      return TURN_BASE_MS + table.clock.bank[round.turn];
     case "awaitResponses":
-      return RESPONSE_MS;
+      return BASE_MS + table.clock.bank[seat];
     case "diceChance":
       return DICE_CHOICE_MS + diceThrows * DICE_STEP_MS;
     case "ended":
       return RESULT_MS + diceThrows * DICE_STEP_MS;
   }
+}
+
+/** 新しい待ちの期限を、待たれている人ごとに決める。 */
+function freshDeadlines(
+  table: TimedTable,
+  now: number,
+  diceThrows: number,
+): PerSeat<number | null> {
+  const deadlines = noSeats();
+  for (const seat of waitedSeats(table)) {
+    deadlines[seat] = now + waitMs(table, seat, diceThrows);
+  }
+  return deadlines;
 }
 
 /** 操作の前後で、同じ待ちが続いているか。続いていれば期限を変えない。 */
@@ -161,26 +213,40 @@ function settle(
 
   const clock: Clock = { ...table.clock, savedAt: ctx.now };
   if (stopped()) {
-    clock.deadline = null;
+    clock.startedAt = null;
+    clock.deadlines = noSeats();
   } else if (isFresh || clock.deadline === null) {
     const diceThrows = events.reduce(
       (total, event) =>
         event.type === "dice" ? total + event.rolls.length : total,
       0,
     );
-    clock.deadline = ctx.now + waitMs({ ...table, clock }, diceThrows);
+    clock.startedAt = ctx.now;
+    clock.deadlines = freshDeadlines({ ...table, clock }, ctx.now, diceThrows);
+  } else {
+    // 同じ待ちが続いている。もう判断した人の期限だけを外し、残りの人の期限は変えない
+    const waited = waitedSeats(table);
+    clock.deadlines = clock.deadlines.map((d, s) =>
+      waited.includes(s as Seat) ? d : null,
+    ) as PerSeat<number | null>;
   }
+  clock.deadline = earliest(clock.deadlines);
   return { table: { ...table, clock }, events };
 }
 
 /** 対局の開始。持ち時間を満たし、最初の手番の期限を決める。 */
 export function startClock(table: TableState, now: number): TimedTable {
   const start: TimedTable = { ...table, clock: newClock(now) };
+  const deadlines = freshDeadlines(start, now, 0).map((d) =>
+    d === null ? null : d + FIRST_TURN_GRACE_MS,
+  ) as PerSeat<number | null>;
   return {
     ...start,
     clock: {
       ...start.clock,
-      deadline: now + waitMs(start, 0) + FIRST_TURN_GRACE_MS,
+      startedAt: now,
+      deadlines,
+      deadline: earliest(deadlines),
     },
   };
 }
@@ -203,15 +269,11 @@ export function applyTimed(
     return settle(table, [], ctx, false);
   }
 
-  // 手番の操作なら、基本の時間を超えた分を持ち時間から引く。
-  // 期限は「基本の時間＋持ち時間」なので、期限までの残りが持ち時間より短ければ、それが新しい持ち時間になる
-  const round = table.game.round;
-  const { deadline } = table.clock;
-  if (
-    round.phase === "awaitTurnAction" &&
-    round.turn === seat &&
-    deadline !== null
-  ) {
+  // 手番の操作や応答なら、基本の時間を超えた分を持ち時間から引く。
+  // 期限は「待ちの開始＋基本の時間＋持ち時間」なので、期限までの残りが持ち時間より短ければ、それが新しい持ち時間になる。
+  // （経過 − 基本の時間 を引くのと同じ。最初の手番の+10秒も基本の時間の側に入る）
+  const deadline = table.clock.deadlines[seat];
+  if (usesBank(table) && deadline !== null) {
     table.clock.bank[seat] = Math.min(
       table.clock.bank[seat],
       Math.max(0, deadline - ctx.now),
@@ -226,29 +288,32 @@ export function applyTimed(
 }
 
 /**
- * 時間切れを処理する。期限前、または期限のない状態なら IllegalActionError。
- * 待たれていた人を自動にして、その人の番を進める。局の結果の時間切れでは自動にしない。
+ * 時間切れを処理する。期限を過ぎた人がいなければ IllegalActionError。
+ * 期限を過ぎた人だけを自動にして、その人の番を進める（手番はツモ切り、応答はスルー）。
+ * まだ期限の来ていない人の待ちはそのまま続く。局の結果の時間切れでは自動にしない。
  */
 export function applyTimeout(input: TableState, ctx: ClockContext): TimedStep {
-  let table = timed(input, ctx.now);
-  const { deadline } = table.clock;
-  if (
-    table.game.phase !== "playing" ||
-    deadline === null ||
-    ctx.now < deadline
-  ) {
+  const before = timed(input, ctx.now);
+  let table = before;
+  const { deadlines } = table.clock;
+  const expired = waitedSeats(table).filter((seat) => {
+    const deadline = deadlines[seat];
+    return deadline !== null && deadline <= ctx.now;
+  });
+  if (table.game.phase !== "playing" || expired.length === 0) {
     throw new IllegalActionError("notAllowed");
   }
 
   const events: TableEvent[] = [];
-  const round = table.game.round;
-  if (round.phase === "ended") {
-    for (const seat of waitedSeats(table)) {
+  if (table.game.round.phase === "ended") {
+    for (const seat of expired) {
       table = applyOne(table, { type: "confirm", seat }, ctx, events);
     }
   } else {
-    for (const seat of waitedSeats(table)) table.clock.auto[seat] = true;
-    if (round.phase === "awaitTurnAction") table.clock.bank[round.turn] = 0;
+    for (const seat of expired) {
+      table.clock.auto[seat] = true;
+      if (usesBank(table)) table.clock.bank[seat] = 0;
+    }
   }
-  return settle(table, events, ctx, true);
+  return settle(table, events, ctx, !sameWait(before, table));
 }
