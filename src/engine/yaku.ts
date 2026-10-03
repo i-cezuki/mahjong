@@ -53,6 +53,7 @@ export type YakuName =
   | "haku"
   | "hatsu"
   | "chun"
+  | "pei"
   | "seatWind"
   | "roundWind"
   | "rinshan"
@@ -116,7 +117,9 @@ export interface WinResult {
 }
 
 const YAKUMAN_HAN = 13;
-const DRAGONS: Record<string, YakuName> = {
+/** 三元牌と北。北は三人麻雀では誰の風にもならないので、常に役牌として扱う。 */
+const VALUE_HONORS: Record<string, YakuName> = {
+  "4z": "pei",
   "5z": "haku",
   "6z": "hatsu",
   "7z": "chun",
@@ -297,8 +300,8 @@ function normalYakuOf(shape: Shape, ctx: Context): Yaku[] {
 
   const yakuhaiHan = (kind: TileKind): Yaku[] => {
     const list: Yaku[] = [];
-    const dragon = DRAGONS[kind];
-    if (dragon) list.push({ name: dragon, han: 1 });
+    const honor = VALUE_HONORS[kind];
+    if (honor) list.push({ name: honor, han: 1 });
     if (kind === input.roundWind) list.push({ name: "roundWind", han: 1 });
     if (kind === input.seatWind) list.push({ name: "seatWind", han: 1 });
     return list;

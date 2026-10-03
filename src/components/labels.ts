@@ -58,6 +58,7 @@ export const YAKU_LABELS: Record<YakuName, string> = {
   haku: "白",
   hatsu: "發",
   chun: "中",
+  pei: "北",
   seatWind: "自風",
   roundWind: "場風",
   rinshan: "嶺上開花",

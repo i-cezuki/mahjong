@@ -117,12 +117,12 @@ describe("1翻の役", () => {
   });
 
   it("平和（両面待ち、役牌でない雀頭）", () => {
-    expect(names(win("123p456p789s44z23s", "4s"))).toEqual(["pinfu"]);
-    expect(names(win("123p456p789s44z23s", "1s"))).toEqual(["pinfu"]);
+    expect(names(win("123p456p789s33z23s", "4s"))).toEqual(["pinfu"]);
+    expect(names(win("123p456p789s33z23s", "1s"))).toEqual(["pinfu"]);
   });
 
   it("平和はツモでも付く", () => {
-    const result = win("123p456p789s44z23s", "4s", { tsumo: true });
+    const result = win("123p456p789s33z23s", "4s", { tsumo: true });
     expect(names(result)).toEqual(["menzenTsumo", "pinfu"]);
   });
 
@@ -149,10 +149,11 @@ describe("1翻の役", () => {
     ["555z", "haku"],
     ["666z", "hatsu"],
     ["777z", "chun"],
+    ["444z", "pei"],
     ["222z", "seatWind"],
     ["111z", "roundWind"],
   ])("役牌 %s", (pon, name) => {
-    const result = win("123p456p789s4z", "4z", { melds: [["pon", pon]] });
+    const result = win("123p456p789s3z", "3z", { melds: [["pon", pon]] });
     expect(names(result)).toEqual([name]);
     expect(result?.han).toBe(1);
   });
@@ -166,10 +167,7 @@ describe("1翻の役", () => {
     expect(result?.han).toBe(2);
   });
 
-  it("北と、自風でも場風でもない風は役にならない", () => {
-    expect(
-      win("123p456p789s3z", "3z", { melds: [["pon", "444z"]] }),
-    ).toBeNull();
+  it("自風でも場風でもない風は役にならない", () => {
     expect(
       win("123p456p789s4z", "4z", { melds: [["pon", "333z"]] }),
     ).toBeNull();
@@ -221,7 +219,7 @@ describe("2翻以上の役", () => {
   });
 
   it("対々和", () => {
-    const result = win("333s444z3z", "3z", {
+    const result = win("333s333z4z", "4z", {
       melds: [
         ["pon", "222p"],
         ["pon", "888s"],
@@ -248,11 +246,11 @@ describe("2翻以上の役", () => {
   });
 
   it("三槓子", () => {
-    const result = win("234p3z", "3z", {
+    const result = win("234p4z", "4z", {
       melds: [
         ["ankan", "1111p"],
         ["minkan", "9999s"],
-        ["kakan", "4444z"],
+        ["kakan", "3333z"],
       ],
     });
     expect(names(result)).toEqual(["sankantsu"]);
@@ -269,7 +267,7 @@ describe("2翻以上の役", () => {
   });
 
   it("混老頭", () => {
-    const result = win("999s444z3z", "3z", {
+    const result = win("999s333z4z", "4z", {
       melds: [
         ["pon", "111m"],
         ["pon", "999p"],
@@ -296,10 +294,10 @@ describe("2翻以上の役", () => {
   });
 
   it("混全帯么九（門前2翻、鳴いて1翻）", () => {
-    const closed = win("123p789p123s444z9s", "9s");
+    const closed = win("123p789p123s333z9s", "9s");
     expect(names(closed)).toEqual(["chanta"]);
     expect(closed?.han).toBe(2);
-    const open = win("123p789p123s9s", "9s", { melds: [["pon", "444z"]] });
+    const open = win("123p789p123s9s", "9s", { melds: [["pon", "333z"]] });
     expect(names(open)).toEqual(["chanta"]);
     expect(open?.han).toBe(1);
   });
@@ -323,10 +321,10 @@ describe("2翻以上の役", () => {
   });
 
   it("混一色（門前3翻、鳴いて2翻）", () => {
-    const closed = win("123p345p678p444z3z", "3z");
+    const closed = win("123p345p678p333z4z", "4z");
     expect(names(closed)).toEqual(["honitsu"]);
     expect(closed?.han).toBe(3);
-    const open = win("123p345p678p3z", "3z", { melds: [["pon", "444z"]] });
+    const open = win("123p345p678p4z", "4z", { melds: [["pon", "333z"]] });
     expect(names(open)).toEqual(["honitsu"]);
     expect(open?.han).toBe(2);
   });
@@ -608,10 +606,10 @@ describe("追加役満", () => {
   });
 
   it("萬子があっても筒子や索子が混ざれば役満ではない", () => {
-    const result = win("999m333z9p", "9p", {
+    const result = win("999m999s9p", "9p", {
       melds: [
         ["pon", "111m"],
-        ["pon", "444z"],
+        ["pon", "333z"],
       ],
     });
     expect(result?.yakuman).toBe(0);
