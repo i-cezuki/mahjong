@@ -37,6 +37,9 @@ export default async function Home() {
         <Link href="/stats" className={subtleButtonClass}>
           成績
         </Link>
+        <Link href="/rules" className={subtleButtonClass}>
+          ルール
+        </Link>
         <Link href="/settings" className={subtleButtonClass}>
           設定
         </Link>
