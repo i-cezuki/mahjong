@@ -1,34 +1,41 @@
 import Link from "next/link";
 import { signOut } from "@/app/actions";
 import { RoomEntry } from "@/app/room-entry";
+import { RoomActions } from "@/app/rooms/[code]/room-client";
 import { Screen, buttonClass, subtleButtonClass } from "@/components/screen";
 import { requireApproved } from "@/server/auth";
 import { abandonStaleGames } from "@/server/games";
-import { getActiveRoomCode } from "@/server/room-queries";
+import { getActiveRoom, listOpenRooms } from "@/server/room-queries";
 
 export default async function Home() {
   const viewer = await requireApproved();
   // 放置された対局に閉じ込められないよう、ここで破棄する
   await abandonStaleGames(viewer.id).catch(() => 0);
-  const activeCode = await getActiveRoomCode(viewer.id);
+  const activeRoom = await getActiveRoom(viewer.id);
+  const openRooms = activeRoom ? [] : await listOpenRooms();
 
   return (
     <Screen title="3人麻雀">
       <p className="text-sm opacity-80">
         {viewer.displayName} さん、ようこそ。
       </p>
-      {activeCode ? (
+      {activeRoom ? (
         <>
           <p className="text-sm opacity-80">参加中のルームがあります。</p>
           <Link
-            href={`/rooms/${activeCode}`}
+            href={`/rooms/${activeRoom.code}`}
             className={`${buttonClass} text-center`}
           >
-            ルーム {activeCode} に戻る
+            ルーム {activeRoom.code} に戻る
           </Link>
+          <RoomActions
+            roomId={activeRoom.id}
+            status={activeRoom.status}
+            rematchReady={false}
+          />
         </>
       ) : (
-        <RoomEntry />
+        <RoomEntry openRooms={openRooms} />
       )}
       <div className="flex flex-wrap items-center gap-4">
         <Link href="/history" className={subtleButtonClass}>

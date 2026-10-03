@@ -2,10 +2,17 @@ import "server-only";
 
 import { createAdminClient, createSessionClient } from "./supabase";
 
-/** 参加中（3人待ち、対局中）のルームのコード。なければ null。 */
-export async function getActiveRoomCode(
+export interface ActiveRoom {
+  id: string;
+  code: string;
+  /** waiting（3人待ち）か in_game */
+  status: string;
+}
+
+/** 参加中（3人待ち、対局中）のルーム。なければ null。 */
+export async function getActiveRoom(
   userId: string,
-): Promise<string | null> {
+): Promise<ActiveRoom | null> {
   const admin = createAdminClient();
   const { data: roomId } = await admin.rpc("active_room_of", {
     p_user: userId,
@@ -13,10 +20,63 @@ export async function getActiveRoomCode(
   if (!roomId) return null;
   const { data } = await admin
     .from("rooms")
-    .select("code")
+    .select("id, code, status")
     .eq("id", roomId)
     .maybeSingle();
-  return data?.code ?? null;
+  return data ?? null;
+}
+
+export interface OpenRoom {
+  code: string;
+  /** 参加している人の表示名（入った順） */
+  names: string[];
+}
+
+/** ホームに出す、参加者を募集中のルームの数の上限 */
+const OPEN_ROOM_LIMIT = 10;
+
+/**
+ * 参加者を募集中（3人待ちで空きがある）のルーム。新しく作られた順。
+ * メンバーでないルームはRLSで見えないので、管理者の権限で読む。
+ */
+export async function listOpenRooms(): Promise<OpenRoom[]> {
+  const admin = createAdminClient();
+  const { data: rooms } = await admin
+    .from("rooms")
+    .select("id, code")
+    .eq("status", "waiting")
+    .order("created_at", { ascending: false })
+    .limit(OPEN_ROOM_LIMIT);
+  if (!rooms?.length) return [];
+
+  const { data: members } = await admin
+    .from("room_members")
+    .select("room_id, user_id")
+    .in(
+      "room_id",
+      rooms.map((room) => room.id),
+    )
+    .order("joined_at");
+  const memberRows = members ?? [];
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id, display_name")
+    .in(
+      "id",
+      memberRows.map((member) => member.user_id),
+    );
+  const names = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.display_name]),
+  );
+
+  return rooms
+    .map((room) => ({
+      code: room.code,
+      names: memberRows
+        .filter((member) => member.room_id === room.id)
+        .map((member) => names.get(member.user_id) ?? "（不明）"),
+    }))
+    .filter((room) => room.names.length > 0 && room.names.length < 3);
 }
 
 export interface RoomMember {
