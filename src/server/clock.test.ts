@@ -15,12 +15,17 @@ import type { PlayAction, TableState } from "./table";
 
 const T0 = 1_000_000;
 
-function ctx(now: number, pick: (count: number) => number = () => 0) {
+function ctx(
+  now: number,
+  pick: (count: number) => number = () => 0,
+  drawHold = 0,
+) {
   let n = 0;
   const context: ClockContext = {
     now,
     nextSeed: () => seedOf(900 + ++n),
     pick,
+    drawHold: () => drawHold,
   };
   return context;
 }
@@ -161,6 +166,56 @@ describe("applyTimed（操作）", () => {
     const next = applyTimed(legacy, discardsOf(legacy, 0)[0]!, ctx(T0)).table;
     expect(next.clock.bank).toEqual([20_000, 20_000, 20_000]);
     expect(next.clock.deadline).not.toBeNull();
+  });
+});
+
+describe("打牌のあとのツモの間", () => {
+  const HOLD = 900;
+  const east = (table: TimedTable) =>
+    discardsOf(table, 0).find((a) => tileOf(a.tile).kind === "1z")!;
+
+  it("打牌が通って次の人がツモったら、その間だけ待ちの開始と期限を遅らせる", () => {
+    const table = start();
+    const next = applyTimed(
+      table,
+      discardsOf(table, 0)[0]!,
+      ctx(T0 + 1_000, () => 0, HOLD),
+    ).table;
+    expect(next.game.round.turn).toBe(1);
+    expect(next.clock.savedAt).toBe(T0 + 1_000);
+    expect(next.clock.startedAt).toBe(T0 + 1_000 + HOLD);
+    expect(next.clock.deadlines).toEqual([null, T0 + 26_000 + HOLD, null]);
+  });
+
+  it("応答待ちは遅らせず、スルーで打牌が通ったら次の人のツモを遅らせる", () => {
+    const table = ponnable();
+    const waiting = applyTimed(
+      table,
+      east(table),
+      ctx(T0 + 1_000, () => 0, HOLD),
+    ).table;
+    expect(waiting.clock.startedAt).toBe(T0 + 1_000);
+    const passed = applyTimed(
+      waiting,
+      { type: "pass", seat: 1 },
+      ctx(T0 + 2_000, () => 0, HOLD),
+    ).table;
+    expect(passed.game.round.turn).toBe(1);
+    expect(passed.clock.startedAt).toBe(T0 + 2_000 + HOLD);
+    expect(passed.clock.deadlines[1]).toBe(T0 + 27_000 + HOLD);
+  });
+
+  it("ポンのあとは遅らせない", () => {
+    const table = ponnable();
+    const waiting = applyTimed(table, east(table), ctx(T0 + 1_000)).table;
+    const pon = actionsFor(waiting, 1).find((a) => a.type === "pon")!;
+    const called = applyTimed(
+      waiting,
+      pon,
+      ctx(T0 + 2_000, () => 0, HOLD),
+    ).table;
+    expect(called.game.round.drawn).toBeNull();
+    expect(called.clock.startedAt).toBe(T0 + 2_000);
   });
 });
 

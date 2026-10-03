@@ -13,6 +13,14 @@ export const RESULT_MS = 15_000;
 /** 対局の最初の手番に足す時間（ルームから卓の画面へ移る分） */
 export const FIRST_TURN_GRACE_MS = 10_000;
 
+/**
+ * 打牌が通ってから次の人のツモを見せるまでの間（この範囲で毎回ランダム）。
+ * 他家が鳴けるか和了できるときだけ応答待ちで止まるので、その待ちを打牌のたびの間にまぎれさせる。
+ * 次の人の期限にはこの分を足す。
+ */
+export const DRAW_HOLD_MIN_MS = 400;
+export const DRAW_HOLD_MAX_MS = 1_600;
+
 /** サイコロが転がっている時間 */
 export const DICE_ROLL_MS = 1_200;
 /** 止まった出目と当たり外れを見せる時間 */

@@ -5,6 +5,7 @@ import type { PlayerView, TableAction } from "@/server/table";
 import { optimisticView } from "./logic/optimistic";
 import { TableScreen } from "./table/table-screen";
 import { useServerTime, useTick } from "./use-clock";
+import { useDrawHold } from "./use-draw-hold";
 import { useGameView } from "./use-game-view";
 import type { Snapshot } from "./use-game-view";
 
@@ -41,6 +42,8 @@ export function GameClient({
   });
   const { version, view } = snapshot;
   const serverTime = useServerTime(snapshot, renderedAt);
+  // 打牌のあと、次の人のツモはサーバーが決めた時刻まで見せない
+  const shown = useDrawHold(view, snapshot.previous, serverTime);
 
   // 終わった（または破棄された）対局に操作や申告を送ったら、ページを読み込み直して結果か案内を出す
   const recover = useCallback(
@@ -127,7 +130,7 @@ export function GameClient({
 
   return (
     <TableScreen
-      view={ahead ?? view}
+      view={ahead ?? shown}
       // 先に出している間は別の版として扱い、牌の選択や発声の検出をやり直させる
       version={ahead ? version + 0.5 : version}
       names={names}

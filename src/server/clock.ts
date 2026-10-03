@@ -33,6 +33,8 @@ export interface ClockContext {
   nextSeed: () => string;
   /** 0 以上 count 未満の整数を返す乱数。サイコロの出目の自動指定に使う。 */
   pick: (count: number) => number;
+  /** 打牌が通ってから次の人のツモを見せるまでの間（ms）。毎回ランダムに決める。 */
+  drawHold: () => number;
 }
 
 export type TimedTable = TableState & { clock: Clock };
@@ -134,6 +136,24 @@ function freshDeadlines(
   return deadlines;
 }
 
+/**
+ * 打牌が通って次の人がツモったところで止まったか。応答待ちを経たかどうかにかかわらず、
+ * 画面はツモを見せるのを少し遅らせ、そのぶん期限を延ばす。
+ * @param resolved 応答待ちが解決された（スルーや時間切れで打牌が通った）
+ */
+function drawAfterDiscard(
+  table: TableState,
+  events: TableEvent[],
+  resolved: boolean,
+): boolean {
+  const round = table.game.round;
+  return (
+    round.phase === "awaitTurnAction" &&
+    round.drawn !== null &&
+    (resolved || events.some((event) => event.type === "discard"))
+  );
+}
+
 /** 操作の前後で、同じ待ちが続いているか。続いていれば期限を変えない。 */
 function sameWait(before: TableState, after: TableState): boolean {
   // 局の結果を1人が確認しただけ、または復帰しただけ
@@ -197,6 +217,7 @@ function settle(
   events: TableEvent[],
   ctx: ClockContext,
   fresh: boolean,
+  resolved: boolean,
 ): TimedStep {
   let table = start;
   let isFresh = fresh;
@@ -221,8 +242,16 @@ function settle(
         event.type === "dice" ? total + event.rolls.length : total,
       0,
     );
-    clock.startedAt = ctx.now;
-    clock.deadlines = freshDeadlines({ ...table, clock }, ctx.now, diceThrows);
+    // ツモを見せるのを遅らせる分だけ、待ちの開始を後ろにずらす
+    const startedAt =
+      ctx.now +
+      (drawAfterDiscard(table, events, resolved) ? ctx.drawHold() : 0);
+    clock.startedAt = startedAt;
+    clock.deadlines = freshDeadlines(
+      { ...table, clock },
+      startedAt,
+      diceThrows,
+    );
   } else {
     // 同じ待ちが続いている。もう判断した人の期限だけを外し、残りの人の期限は変えない
     const waited = waitedSeats(table);
@@ -266,7 +295,7 @@ export function applyTimed(
   if (action.type === "resume") {
     if (!table.clock.auto[seat]) throw new IllegalActionError("notAllowed");
     table.clock.auto[seat] = false;
-    return settle(table, [], ctx, false);
+    return settle(table, [], ctx, false, false);
   }
 
   // 手番の操作や応答なら、基本の時間を超えた分を持ち時間から引く。
@@ -284,7 +313,13 @@ export function applyTimed(
   const next = applyOne(table, action, ctx, events);
   // 本人が操作したので、即ツモ切りを解除する
   next.clock.auto[seat] = false;
-  return settle(next, events, ctx, !sameWait(table, next));
+  return settle(
+    next,
+    events,
+    ctx,
+    !sameWait(table, next),
+    table.game.round.phase === "awaitResponses",
+  );
 }
 
 /**
@@ -315,5 +350,11 @@ export function applyTimeout(input: TableState, ctx: ClockContext): TimedStep {
       if (usesBank(table)) table.clock.bank[seat] = 0;
     }
   }
-  return settle(table, events, ctx, !sameWait(before, table));
+  return settle(
+    table,
+    events,
+    ctx,
+    !sameWait(before, table),
+    before.game.round.phase === "awaitResponses",
+  );
 }

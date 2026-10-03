@@ -19,16 +19,25 @@ const VERSION_CHECK_MS = 4000;
 
 /** 画面データを最新に保つ。Realtimeの通知と、操作の応答の両方から受け取る。 */
 export function useGameView(gameId: string, initial: Snapshot) {
-  const [snapshot, setSnapshot] = useState(() => ({
+  const [snapshot, setSnapshot] = useState<
+    Snapshot & { previous: PlayerView | null }
+  >(() => ({
     ...initial,
     view: withClockFields(initial.view),
+    previous: null,
   }));
 
-  // 通知は順番どおりに届くとは限らないので、版番号の新しいものだけを採用する
+  // 通知は順番どおりに届くとは限らないので、版番号の新しいものだけを採用する。
+  // すぐ前の版の画面データは、ツモを見せる前の表示に使う（版が飛んだら使わない）
   const accept = useCallback((next: Snapshot) => {
     setSnapshot((current) =>
       next.version > current.version
-        ? { version: next.version, view: withClockFields(next.view) }
+        ? {
+            version: next.version,
+            view: withClockFields(next.view),
+            previous:
+              next.version === current.version + 1 ? current.view : null,
+          }
         : current,
     );
   }, []);

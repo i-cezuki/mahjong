@@ -54,6 +54,7 @@ const context = (now = Date.now()): ClockContext => ({
   now,
   nextSeed: randomSeed,
   pick: (count) => Math.floor(Math.random() * count),
+  drawHold: () => 0,
 });
 
 /** 時計つきの対局を始める。 */
