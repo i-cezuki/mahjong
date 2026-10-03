@@ -76,6 +76,15 @@ export default async function RoomPage({ params }: PageProps<"/rooms/[code]">) {
         </table>
       )}
 
+      {room.status !== "abandoned" && room.results.length > 0 && (
+        <Link
+          href={`/games/${room.gameId}/replay`}
+          className={subtleButtonClass}
+        >
+          牌譜を見る
+        </Link>
+      )}
+
       <ul className="flex flex-col gap-1 text-sm">
         {room.members.map((member) => (
           <li key={member.userId} className="flex justify-between gap-3">

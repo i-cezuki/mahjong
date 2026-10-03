@@ -12,7 +12,7 @@ const MAX_GAMES = 300;
 export default async function HistoryPage({
   searchParams,
 }: PageProps<"/history">) {
-  await requireApproved();
+  const viewer = await requireApproved();
   const requested = Number((await searchParams).n);
   const limit =
     Number.isInteger(requested) && requested > 0
@@ -31,8 +31,17 @@ export default async function HistoryPage({
             key={game.gameId}
             className="rounded border border-foreground/20 p-3"
           >
-            <p className="mb-2 text-xs opacity-70">
-              {formatJst(game.finishedAt)}
+            <p className="mb-2 flex items-baseline justify-between text-xs">
+              <span className="opacity-70">{formatJst(game.finishedAt)}</span>
+              {/* 牌譜は打った人にしか見えない */}
+              {game.players.some((p) => p.playerId === viewer.id) && (
+                <Link
+                  href={`/games/${game.gameId}/replay`}
+                  className={subtleButtonClass}
+                >
+                  牌譜
+                </Link>
+              )}
             </p>
             <table className="w-full text-sm">
               <thead>

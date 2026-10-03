@@ -7,10 +7,13 @@ export function GameResult({
   result,
   names,
   roomCode,
+  replayHref = null,
 }: {
   result: Result;
   names: string[];
   roomCode: string | null;
+  /** 牌譜の再生画面。牌譜の中で出すときは null */
+  replayHref?: string | null;
 }) {
   return (
     <section className="flex flex-col gap-2 border-t border-cyan-400/40 pt-3">
@@ -43,6 +46,11 @@ export function GameResult({
           ))}
         </tbody>
       </table>
+      {replayHref && (
+        <Link href={replayHref} className="w-fit text-sm underline opacity-80">
+          牌譜を見る
+        </Link>
+      )}
       {roomCode && (
         <Link
           href={`/rooms/${roomCode}`}

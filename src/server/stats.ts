@@ -13,7 +13,7 @@ import { createAdminClient, createSessionClient } from "./supabase";
 const PAGE = 1000;
 
 /** 全部の行を読む。1回に1000行までしか返らないので、なくなるまで繰り返す。 */
-async function readAll<T>(
+export async function readAll<T>(
   page: (
     from: number,
     to: number,

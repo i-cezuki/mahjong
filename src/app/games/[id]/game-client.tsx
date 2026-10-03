@@ -133,6 +133,7 @@ export function GameClient({
 
   return (
     <TableScreen
+      gameId={gameId}
       view={ahead ?? shown}
       // 先に出している間は別の版として扱い、牌の選択や発声の検出をやり直させる
       version={ahead ? version + 0.5 : version}

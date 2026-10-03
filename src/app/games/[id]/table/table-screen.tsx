@@ -28,6 +28,8 @@ import { useFlowerReveal } from "./use-flower-reveal";
 import { WallPanel } from "./wall";
 
 export interface TableScreenProps {
+  /** 終局のあとに牌譜へ案内する。開発用の卓のように対局がなければ省く */
+  gameId?: string;
   view: PlayerView;
   /** 画面データの版番号。牌の選択と自動操作を、更新のたびにやり直すために使う */
   version: number;
@@ -57,6 +59,7 @@ interface Pinned<T> {
 }
 
 function Table({
+  gameId,
   view,
   version,
   names,
@@ -361,6 +364,7 @@ function Table({
                   result={view.result}
                   names={names}
                   roomCode={roomCode}
+                  replayHref={gameId ? `/games/${gameId}/replay` : null}
                 />
               )}
             </RoundResult>
