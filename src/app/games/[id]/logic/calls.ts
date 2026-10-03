@@ -11,6 +11,7 @@ export type CallKind =
   | "kan"
   | "ron"
   | "tsumo"
+  | "ippatsuTsumo"
   | "pocchi";
 
 export interface Call {
@@ -26,12 +27,18 @@ export const CALL_LABELS: Record<CallKind, string> = {
   kan: "カン",
   ron: "ロン",
   tsumo: "ツモ",
+  ippatsuTsumo: "一発ツモ",
   pocchi: "ポッチ",
 };
 
 /** 和了の発声。出している間は、局の結果を出すのを待つ。 */
 export function isWinCall(call: Call): boolean {
-  return call.kind === "ron" || call.kind === "tsumo" || call.kind === "pocchi";
+  return call.kind === "ron" || call.kind === "tsumo" || isJackpotCall(call);
+}
+
+/** 特別に派手に出す和了の発声。ポッチと一発ツモ。 */
+export function isJackpotCall(call: Call): boolean {
+  return call.kind === "pocchi" || call.kind === "ippatsuTsumo";
 }
 
 /**
@@ -76,9 +83,18 @@ export function detectCalls(before: PlayerView, after: PlayerView): Call[] {
     for (const win of after.outcome.wins) {
       // 流し役満は流局のあとの精算で、発声はない
       if (win.kind === "nagashi") continue;
+      const ippatsu =
+        win.result?.yaku.some((yaku) => yaku.name === "ippatsu") ?? false;
       calls.push({
         seat: win.seat,
-        kind: win.kind === "ron" || win.kind === "tsumo" ? win.kind : "pocchi",
+        kind:
+          win.kind === "tsumo"
+            ? ippatsu
+              ? "ippatsuTsumo"
+              : "tsumo"
+            : win.kind === "ron"
+              ? "ron"
+              : "pocchi",
       });
     }
   }

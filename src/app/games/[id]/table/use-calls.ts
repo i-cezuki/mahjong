@@ -3,13 +3,20 @@
 import { useEffect, useState } from "react";
 import type { Seat } from "@/engine";
 import type { PlayerView } from "@/server/table";
-import { detectCalls, detectTedashi, isWinCall } from "../logic/calls";
+import {
+  detectCalls,
+  detectTedashi,
+  isJackpotCall,
+  isWinCall,
+} from "../logic/calls";
 import type { Call } from "../logic/calls";
 
 /** リーチや鳴きの発声を出しておく時間 */
 const CALL_MS = 1400;
 /** 和了の発声を出して、局の結果を出すのを待つ時間 */
 const WIN_PAUSE_MS = 1000;
+/** ポッチと一発ツモの特別な発声を出して、局の結果を出すのを待つ時間 */
+const JACKPOT_PAUSE_MS = 2600;
 /** 「手出し」の吹き出しを出しておく時間 */
 const TEDASHI_MS = 1000;
 
@@ -50,7 +57,11 @@ function useTransient<T>(
 }
 
 const callDuration = (calls: readonly Call[]) =>
-  calls.some(isWinCall) ? WIN_PAUSE_MS : CALL_MS;
+  calls.some(isJackpotCall)
+    ? JACKPOT_PAUSE_MS
+    : calls.some(isWinCall)
+      ? WIN_PAUSE_MS
+      : CALL_MS;
 const tedashiDuration = () => TEDASHI_MS;
 
 /**

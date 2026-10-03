@@ -189,3 +189,151 @@ body {
   display: inline-block;
   animation: ura-pop 0.3s ease-out both;
 }
+
+/* ポッチと一発ツモの特別な発声 */
+@keyframes jackpot-flash {
+  0% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.jackpot-flash {
+  animation: jackpot-flash 0.45s ease-out both;
+}
+
+@keyframes jackpot-dim {
+  0% {
+    opacity: 0;
+  }
+  10%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.jackpot-dim {
+  animation: jackpot-dim 2.6s linear both;
+}
+
+/* 金色の光線が回りながら広がる */
+@keyframes jackpot-rays {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1) rotate(20deg);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1) rotate(140deg);
+  }
+}
+
+.jackpot-rays {
+  background:
+    radial-gradient(
+      circle,
+      rgba(255, 244, 180, 0.95) 0%,
+      rgba(251, 191, 36, 0.5) 18%,
+      transparent 45%
+    ),
+    repeating-conic-gradient(
+      rgba(253, 224, 71, 0.55) 0deg 7deg,
+      transparent 7deg 18deg
+    );
+  mask-image: radial-gradient(circle, black 20%, transparent 60%);
+  animation: jackpot-rays 2.6s ease-out both;
+}
+
+/* 文字を上から叩きつけ、揺らしてから、最後に消す */
+@keyframes jackpot-slam {
+  0% {
+    opacity: 0;
+    transform: scale(3.2) rotate(-8deg);
+  }
+  14% {
+    opacity: 1;
+    transform: scale(0.92) rotate(2deg);
+  }
+  18% {
+    transform: scale(1.06) translate(-6px, 4px) rotate(-2deg);
+  }
+  22% {
+    transform: scale(1) translate(6px, -4px) rotate(1deg);
+  }
+  26% {
+    transform: scale(1.02) translate(-3px, 2px);
+  }
+  30%,
+  86% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+.jackpot-slam {
+  animation: jackpot-slam 2.6s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+/* 金色の文字に光が流れる */
+@keyframes jackpot-shine {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.jackpot-text {
+  background:
+    linear-gradient(
+      100deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.95) 50%,
+      transparent 60%
+    ),
+    linear-gradient(180deg, #fff7c2 0%, #fcd34d 45%, #f59e0b 60%, #fde68a 100%);
+  background-size:
+    300% 100%,
+    100% 100%;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 3px #7c2d12;
+  filter: drop-shadow(0 0 18px rgba(251, 191, 36, 0.9))
+    drop-shadow(0 6px 0 rgba(0, 0, 0, 0.7));
+  animation: jackpot-shine 1.1s linear 0.4s infinite;
+}
+
+/* 光の粒が真ん中から飛び散る */
+@keyframes jackpot-spark {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)))
+      scale(0.3);
+  }
+}
+
+.jackpot-spark {
+  box-shadow: 0 0 12px 4px rgba(253, 224, 71, 0.9);
+  animation: jackpot-spark 1.1s ease-out both;
+}

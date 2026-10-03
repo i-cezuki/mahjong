@@ -5,7 +5,7 @@ import { buildDeck, seedOf } from "@/engine/testing";
 import type { DeckSpec } from "@/engine/testing";
 import { buildView, startTable } from "@/server/table";
 import type { PlayerView, TableState } from "@/server/table";
-import { detectCalls, detectTedashi, isWinCall } from "./calls";
+import { detectCalls, detectTedashi, isJackpotCall, isWinCall } from "./calls";
 
 /** 親が席0の局を、牌の並びを決めて始める。操作のたびに席2から見た画面データを返す。 */
 function scenario(deck: DeckSpec) {
@@ -97,12 +97,27 @@ describe("detectCalls（発声の検出）", () => {
       hands: ["123456789p 23s 11z", ...OTHERS],
       live: "7z 1m 9m 4s",
     });
-    s.cut(0, "7z", true);
+    s.cut(0, "7z");
     s.cut(1, "1m");
     const before = s.cut(2, "9m");
     const calls = detectCalls(before, s.act({ type: "tsumo", seat: 0 }));
     expect(calls).toEqual([{ seat: 0, kind: "tsumo" }]);
     expect(calls.some(isWinCall)).toBe(true);
+    expect(calls.some(isJackpotCall)).toBe(false);
+  });
+
+  it("一発ツモは別の種類で、特別な発声にする", () => {
+    const s = scenario({
+      hands: ["123456789p 23s 11z", ...OTHERS],
+      live: "7z 1m 9m 4s",
+    });
+    s.cut(0, "7z", true);
+    s.cut(1, "1m");
+    const before = s.cut(2, "9m");
+    const calls = detectCalls(before, s.act({ type: "tsumo", seat: 0 }));
+    expect(calls).toEqual([{ seat: 0, kind: "ippatsuTsumo" }]);
+    expect(calls.some(isWinCall)).toBe(true);
+    expect(calls.some(isJackpotCall)).toBe(true);
   });
 
   it("ロン。宣言牌でのロンは、リーチとロンの両方を出す", () => {
