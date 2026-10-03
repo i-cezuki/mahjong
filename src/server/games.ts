@@ -3,7 +3,11 @@ import "server-only";
 import { randomBytes, randomInt } from "node:crypto";
 import { IllegalActionError, SEATS } from "@/engine";
 import type { PerSeat, Seat } from "@/engine";
-import { DRAW_HOLD_MAX_MS, DRAW_HOLD_MIN_MS } from "@/lib/timing";
+import {
+  DRAW_HOLD_MAX_MS,
+  DRAW_HOLD_MIN_MS,
+  DRAW_HOLD_PERCENT,
+} from "@/lib/timing";
 import type { Json } from "./database.types";
 import { applyTimed, applyTimeout, startClock } from "./clock";
 import type { ClockContext, TimedStep } from "./clock";
@@ -27,7 +31,10 @@ function clockContext(): ClockContext {
     now: serverNow(),
     nextSeed: newSeed,
     pick: (count) => randomInt(count),
-    drawHold: () => randomInt(DRAW_HOLD_MIN_MS, DRAW_HOLD_MAX_MS + 1),
+    drawHold: () =>
+      randomInt(100) < DRAW_HOLD_PERCENT
+        ? randomInt(DRAW_HOLD_MIN_MS, DRAW_HOLD_MAX_MS + 1)
+        : 0,
   };
 }
 

@@ -33,7 +33,7 @@ export interface ClockContext {
   nextSeed: () => string;
   /** 0 以上 count 未満の整数を返す乱数。サイコロの出目の自動指定に使う。 */
   pick: (count: number) => number;
-  /** 打牌が通ってから次の人のツモを見せるまでの間（ms）。毎回ランダムに決める。 */
+  /** 打牌が通ってから次の人のツモを見せるまでの間（ms）。ときどきだけ入れるので、ふだんは 0。 */
   drawHold: () => number;
 }
 
