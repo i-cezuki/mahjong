@@ -7,10 +7,12 @@ function Meld({
   meld,
   seat,
   width,
+  glow,
 }: {
   meld: MeldState;
   seat: Seat;
   width: number;
+  glow?: ((tile: TileId) => boolean) | undefined;
 }) {
   return (
     <span className="flex items-end">
@@ -18,7 +20,13 @@ function Meld({
         back ? (
           <TileBack key={tile} width={width} />
         ) : (
-          <Tile key={tile} id={tile} width={width} sideways={sideways} />
+          <Tile
+            key={tile}
+            id={tile}
+            width={width}
+            sideways={sideways}
+            glow={glow?.(tile) ?? false}
+          />
         ),
       )}
     </span>
@@ -30,18 +38,27 @@ export function Melds({
   melds,
   seat,
   width,
+  glow,
   className = "",
 }: {
   melds: readonly MeldState[];
   /** 鳴いた人の席。鳴いた牌を置く側を決めるのに使う */
   seat: Seat;
   width: number;
+  /** 光らせる牌 */
+  glow?: ((tile: TileId) => boolean) | undefined;
   className?: string;
 }) {
   return (
     <div className={`flex gap-1.5 ${className}`}>
       {melds.map((meld) => (
-        <Meld key={meld.tiles[0]} meld={meld} seat={seat} width={width} />
+        <Meld
+          key={meld.tiles[0]}
+          meld={meld}
+          seat={seat}
+          width={width}
+          glow={glow}
+        />
       ))}
     </div>
   );

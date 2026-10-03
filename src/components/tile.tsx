@@ -56,12 +56,15 @@ export function Tile({
   rotation = sideways ? 90 : 0,
   dimmed = false,
   raised = false,
+  glow = false,
 }: BoxProps & {
   id: TileId;
   /** 薄く表示する（鳴かれた牌、選べない牌） */
   dimmed?: boolean;
   /** 少し浮かせる（打牌の1回目のタップ） */
   raised?: boolean;
+  /** 金色に光らせる（乗った裏ドラ） */
+  glow?: boolean;
 }) {
   const height = Math.round(width * TILE_RATIO);
   return (
@@ -70,7 +73,9 @@ export function Tile({
       rotation={rotation}
       className={`transition-transform duration-100 ${raised ? "-translate-y-3.5" : ""} ${dimmed ? "opacity-40" : ""}`}
     >
-      <span className="block h-full w-full rounded-[5px] bg-[#fffaf0] shadow-[0_1px_0_rgba(255,255,255,0.75)_inset,0_3px_7px_rgba(0,0,0,0.32)] ring-1 ring-slate-950/25">
+      <span
+        className={`block h-full w-full rounded-[5px] bg-[#fffaf0] shadow-[0_1px_0_rgba(255,255,255,0.75)_inset,0_3px_7px_rgba(0,0,0,0.32)] ring-1 ring-slate-950/25 ${glow ? "ura-glow" : ""}`}
+      >
         <Image
           src={tileImage(id)}
           alt={tileLabel(id)}

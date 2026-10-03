@@ -349,14 +349,15 @@ function Table({
               playback={playback}
               busy={busy}
               send={send}
-            />
-            {view.result && !dicePlaying && (
-              <GameResult
-                result={view.result}
-                names={names}
-                roomCode={roomCode}
-              />
-            )}
+            >
+              {view.result && !dicePlaying && (
+                <GameResult
+                  result={view.result}
+                  names={names}
+                  roomCode={roomCode}
+                />
+              )}
+            </RoundResult>
             {clock && (
               <div className="absolute right-[100px] bottom-3">{clock}</div>
             )}
