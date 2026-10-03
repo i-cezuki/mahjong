@@ -339,8 +339,11 @@ function Table({
         <Melds melds={view.melds[layout.self]} seat={layout.self} width={36} />
       </div>
 
-      {view.outcome && !peeking && !resultHeld && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/55">
+      {/* 卓を見ている間も消さずに隠す。戻ったときに役の演出をやり直さない */}
+      {view.outcome && !resultHeld && (
+        <div
+          className={`absolute inset-0 flex items-center justify-center bg-black/55 ${peeking ? "hidden" : ""}`}
+        >
           <div className="relative flex max-h-[452px] w-[760px] flex-col gap-3 overflow-y-auto rounded-lg border border-cyan-400/70 bg-[#07122b] p-4">
             <RoundResult
               view={view}

@@ -5,6 +5,7 @@ import { doraKind, tileOf } from "@/engine";
 import type { Seat, TileId, TileKind, WinRecord } from "@/engine";
 import type { PlayerView, TableAction } from "@/server/table";
 import type { ActionMenu } from "../logic/actions";
+import { revealItems, revealSchedule } from "../logic/win-reveal";
 import { DiceSection } from "./dice";
 import { Melds } from "./melds";
 import type { DicePlayback } from "./use-dice-playback";
@@ -19,35 +20,48 @@ const WIN_KINDS: Record<WinRecord["kind"], string> = {
   nagashi: "流し役満",
 };
 
-const DORA_LABELS = [
-  ["dora", "ドラ"],
-  ["ura", "裏ドラ"],
-  ["red", "赤"],
-  ["gold", "金"],
-  ["flower", "花"],
-] as const;
-
-/** 役を見せてから裏ドラをめくるまで */
-const URA_FLIP_MS = 500;
-/** 裏ドラをめくってから役が確定するまで（牌が光っている間） */
-const URA_SETTLE_MS = 1300;
+const BONUS_LABELS = {
+  dora: "ドラ",
+  red: "赤",
+  gold: "金",
+  flower: "花",
+} as const;
 
 /** 裏ドラの演出の段階。めくる前、めくって光らせている、役が確定した */
 type UraStage = "hidden" | "flipped" | "settled";
 
-/** リーチの和了なら、裏ドラをめくるまでの間を取る。 */
-function useUraStage(animate: boolean): UraStage {
-  const [stage, setStage] = useState<UraStage>(animate ? "hidden" : "settled");
+/** 内訳の演出の進み具合 */
+interface Reveal {
+  /** 出した行数（裏ドラを除く） */
+  shown: number;
+  uraStage: UraStage;
+  /** 内訳がすべて出た。点棒の移動を出してよい */
+  done: boolean;
+}
+
+/**
+ * 和了の内訳を1行ずつ出し、リーチの和了なら最後に裏ドラをめくる。
+ * @param count 裏ドラを除いた行数。0 のとき（流局）は演出しない
+ */
+function useReveal(count: number, ura: boolean): Reveal {
+  const animate = count > 0 || ura;
+  const [passed, setPassed] = useState(0);
   useEffect(() => {
     if (!animate) return;
-    const flip = setTimeout(() => setStage("flipped"), URA_FLIP_MS);
-    const settle = setTimeout(() => setStage("settled"), URA_SETTLE_MS);
-    return () => {
-      clearTimeout(flip);
-      clearTimeout(settle);
-    };
-  }, [animate]);
-  return stage;
+    const { steps, flip, settle } = revealSchedule(count, ura);
+    const times = [...steps, ...(flip === null ? [] : [flip]), settle];
+    const timers = times.map((time, i) =>
+      setTimeout(() => setPassed(i + 1), time),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [animate, count, ura]);
+  if (!animate) return { shown: 0, uraStage: "settled", done: true };
+  const done = passed === count + (ura ? 1 : 0) + 1;
+  return {
+    shown: Math.min(passed, count),
+    uraStage: done ? "settled" : ura && passed > count ? "flipped" : "hidden",
+    done,
+  };
 }
 
 export const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
@@ -94,33 +108,30 @@ function Win({
   names,
   win,
   uraKinds,
-  uraStage,
+  reveal,
 }: {
   view: PlayerView;
   names: string[];
   win: WinRecord;
   /** 裏ドラになる種類。リーチの和了がなければ空 */
   uraKinds: ReadonlySet<TileKind>;
-  uraStage: UraStage;
+  reveal: Reveal;
 }) {
   const result = win.result;
   const riichi = view.riichi[win.seat] !== null;
-  // 裏ドラが乗っていても、役が確定するまでは数えない
-  const pendingUra = result && uraStage !== "settled" ? result.dora.ura : 0;
-  const popUra = riichi && uraKinds.size > 0 && (result?.dora.ura ?? 0) > 0;
-  const bonus = result
-    ? DORA_LABELS.filter(
-        ([key]) => result.dora[key] > 0 && !(key === "ura" && pendingUra > 0),
-      ).map(([key, label]) => ({ key, text: `${label} ${result.dora[key]}` }))
-    : [];
-  const han = result ? result.han - (result.yakuman > 0 ? 0 : pendingUra) : 0;
-  const limit = result ? limitLabel(han) : null;
+  const items = result ? revealItems(result) : [];
+  // 裏ドラの行は、裏ドラをめくって役が確定してから出す
+  const visible = [
+    ...items.filter((item) => item.kind !== "ura").slice(0, reveal.shown),
+    ...(reveal.uraStage === "settled"
+      ? items.filter((item) => item.kind === "ura")
+      : []),
+  ];
+  const limit = result ? limitLabel(result.han) : null;
   const glow =
-    riichi && uraStage !== "hidden" && uraKinds.size > 0
+    riichi && reveal.uraStage !== "hidden" && uraKinds.size > 0
       ? (tile: TileId) => uraKinds.has(tileOf(tile).kind)
       : undefined;
-  // 翻数が裏ドラで変わったら、確定したときに弾ませる
-  const pop = popUra && uraStage === "settled" ? "ura-pop" : "";
   return (
     <section className="flex flex-col gap-1.5">
       <h3 className="flex items-baseline gap-3">
@@ -131,8 +142,9 @@ function Win({
         {win.from !== null && (
           <span className="text-sm opacity-70">（{names[win.from]}から）</span>
         )}
-        {result && (
-          <span className="ml-auto flex items-baseline gap-2 text-lg font-bold">
+        {/* 合計と満貫などは、裏ドラまで全部出し切ってから出す */}
+        {result && reveal.done && (
+          <span className="yaku-pop ml-auto text-lg font-bold">
             {result.yakuman > 0 ? (
               result.yakuman > 1 ? (
                 `役満×${result.yakuman}`
@@ -141,17 +153,8 @@ function Win({
               )
             ) : (
               <>
-                <span key={pop} className={pop}>
-                  合計 {han}翻
-                </span>
-                {limit && (
-                  <span
-                    key={`${pop}-limit`}
-                    className={`text-amber-200 ${pop}`}
-                  >
-                    {limit}
-                  </span>
-                )}
+                <span>合計 {result.han}翻</span>
+                {limit && <span className="ml-2 text-amber-200">{limit}</span>}
               </>
             )}
           </span>
@@ -159,21 +162,26 @@ function Win({
       </h3>
       <Hand view={view} seat={win.seat} winTile={win.winTile} glow={glow} />
       {result && (
-        <p className="flex flex-wrap gap-x-3 text-sm">
-          {result.yaku.map((yaku) => (
-            <span key={yaku.name}>
-              {YAKU_LABELS[yaku.name]}
-              {yaku.han < 13 && <span className="opacity-60"> {yaku.han}</span>}
-            </span>
-          ))}
-          {bonus.map(({ key, text }) => (
-            <span
-              key={key}
-              className={`text-amber-200 ${key === "ura" && popUra ? "ura-pop font-bold text-yellow-300" : ""}`}
-            >
-              {text}
-            </span>
-          ))}
+        // 行が出る前から高さを取っておき、下の段が動かないようにする
+        <p className="flex min-h-5 flex-wrap gap-x-3 text-sm">
+          {visible.map((item) =>
+            item.kind === "yaku" ? (
+              <span key={item.name} className="yaku-pop">
+                {YAKU_LABELS[item.name]}
+                {item.han < 13 && (
+                  <span className="opacity-60"> {item.han}</span>
+                )}
+              </span>
+            ) : item.kind === "bonus" ? (
+              <span key={item.key} className="yaku-pop text-amber-200">
+                {BONUS_LABELS[item.key]} {item.han}
+              </span>
+            ) : (
+              <span key="ura" className="ura-pop font-bold text-yellow-300">
+                裏ドラ {item.han}
+              </span>
+            ),
+          )}
         </p>
       )}
     </section>
@@ -233,8 +241,19 @@ export function RoundResult({
   children?: React.ReactNode;
 }) {
   const outcome = view.outcome;
-  // 裏ドラ表示牌はリーチの和了があるときだけ届く
-  const uraStage = useUraStage((outcome?.uraIndicators.length ?? 0) > 0);
+  // 裏ドラ表示牌はリーチの和了があるときだけ届く。ダブロンは2人同時に出していく
+  const reveal = useReveal(
+    Math.max(
+      0,
+      ...(outcome?.wins ?? []).map(
+        (win) =>
+          (win.result ? revealItems(win.result) : []).filter(
+            (item) => item.kind !== "ura",
+          ).length,
+      ),
+    ),
+    (outcome?.uraIndicators.length ?? 0) > 0,
+  );
   if (!outcome) return null;
   const uraKinds = new Set(
     outcome.uraIndicators.map((tile) => doraKind(tileOf(tile).kind)),
@@ -271,7 +290,7 @@ export function RoundResult({
           names={names}
           win={win}
           uraKinds={uraKinds}
-          uraStage={uraStage}
+          reveal={reveal}
         />
       ))}
 
@@ -280,7 +299,7 @@ export function RoundResult({
           <span className="opacity-70">裏ドラ表示</span>
           <span className="flex">
             {outcome.uraIndicators.map((tile) =>
-              uraStage === "hidden" ? (
+              reveal.uraStage === "hidden" ? (
                 <TileBack key={tile} width={24} />
               ) : (
                 <span key={tile} className="ura-flip">
@@ -292,7 +311,7 @@ export function RoundResult({
         </p>
       )}
 
-      {uraStage === "settled" && (
+      {reveal.done && (
         <>
           <table className="w-fit text-sm">
             <tbody>
