@@ -125,6 +125,39 @@ function passAll(table: TableState): TableState {
   return current;
 }
 
+/** 自分が聴牌していて、下家が当たり牌の5索を切った局。自分はロンできる。 */
+function ronTable(): TableState {
+  const seed = randomSeed();
+  const deck = buildDeck({
+    hands: [
+      "123456789p 234s 5s",
+      "19m 147p 258s 12346z",
+      "19m 258p 147s 12346z",
+    ],
+    live: "7z 3p 3s",
+    dora: "4s",
+    ura: "8p",
+  });
+  const start = startTable({ seed }).table;
+  let table: TableState = startClock(
+    {
+      ...start,
+      game: {
+        ...start.game,
+        round: startRoundFromDeck(deck, { dealer: ME, seed }).state,
+      },
+    },
+    Date.now(),
+  );
+  table = passAll(
+    step(table, { type: "discard", seat: ME, tile: table.game.round.drawn! }),
+  );
+  const fiveSou = table.game.round.hands[1].find(
+    (id) => tileOf(id).kind === "5s",
+  );
+  return step(table, { type: "discard", seat: 1, tile: fiveSou! });
+}
+
 /** 下家が配牌で聴牌していて、最初のツモで中を切ってオープンリーチした局。 */
 function opponentOpenRiichiTable(): TableState {
   const seed = randomSeed();
@@ -350,6 +383,11 @@ export function Sandbox() {
           setFake(null);
           setScene((n) => n + 1);
           update(() => tenpaiTable("o5z"));
+        })}
+        {debug("ロン", () => {
+          setFake(null);
+          setScene((n) => n + 1);
+          update(() => ronTable());
         })}
         {debug("相手のオープンリーチ", () => {
           setFake(null);
