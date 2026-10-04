@@ -14,7 +14,7 @@ import type { Call } from "../logic/calls";
 /** リーチや鳴きの発声を出しておく時間 */
 const CALL_MS = 1400;
 /** 和了の発声を出して、局の結果を出すのを待つ時間 */
-const WIN_PAUSE_MS = 1000;
+const WIN_PAUSE_MS = 1500;
 /** ポッチと一発ツモの特別な発声を出して、局の結果を出すのを待つ時間 */
 const JACKPOT_PAUSE_MS = 2600;
 /** 「手出し」の吹き出しを出しておく時間 */
