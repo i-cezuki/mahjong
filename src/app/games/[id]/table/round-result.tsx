@@ -5,6 +5,7 @@ import { doraKind, tileOf } from "@/engine";
 import type { Seat, TileId, TileKind, WinRecord } from "@/engine";
 import type { PlayerView, TableAction } from "@/server/table";
 import type { ActionMenu } from "../logic/actions";
+import { winHand } from "../logic/win-hand";
 import { revealItems, revealSchedule } from "../logic/win-reveal";
 import { DiceSection } from "./dice";
 import { Melds } from "./melds";
@@ -66,37 +67,51 @@ function useReveal(count: number, ura: boolean): Reveal {
 
 export const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
-/** 公開された手牌と副露。和了牌があれば右に離して置く。 */
+/**
+ * 公開された手牌と副露。和了牌があれば右に離して置く。
+ * ポッチ・逆ポッチの和了では、引いた白を手牌から外し「白 → 高め取りした牌」と並べる。
+ */
 function Hand({
   view,
   seat,
-  winTile,
+  win,
   glow,
 }: {
   view: PlayerView;
   seat: Seat;
-  winTile: number | null;
+  win: Pick<WinRecord, "kind" | "winTile"> | null;
   /** 光らせる牌（乗った裏ドラ） */
   glow?: ((tile: TileId) => boolean) | undefined;
 }) {
-  const hand = view.revealed[seat];
-  if (!hand) return null;
+  const revealed = view.revealed[seat];
+  if (!revealed) return null;
+  const { hand, pocchi, winTile } = winHand(
+    revealed,
+    win?.kind ?? null,
+    win?.winTile ?? null,
+  );
   return (
     <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
       <span className="flex">
-        {hand
-          .filter((tile) => tile !== winTile)
-          .map((tile) => (
-            <Tile
-              key={tile}
-              id={tile}
-              width={30}
-              glow={glow?.(tile) ?? false}
-            />
-          ))}
+        {hand.map((tile) => (
+          <Tile key={tile} id={tile} width={30} glow={glow?.(tile) ?? false} />
+        ))}
       </span>
-      {winTile !== null && (
-        <Tile id={winTile} width={30} glow={glow?.(winTile) ?? false} />
+      {pocchi !== null && winTile !== null ? (
+        <span
+          className="flex items-center gap-1"
+          aria-label={`${WIN_KINDS[win!.kind]}で和了牌に変わった`}
+        >
+          <Tile id={pocchi} width={30} />
+          <span aria-hidden className="text-lg font-bold text-amber-200">
+            →
+          </span>
+          <Tile id={winTile} width={30} glow={glow?.(winTile) ?? false} />
+        </span>
+      ) : (
+        winTile !== null && (
+          <Tile id={winTile} width={30} glow={glow?.(winTile) ?? false} />
+        )
       )}
       <Melds melds={view.melds[seat]} seat={seat} width={26} glow={glow} />
     </div>
@@ -160,7 +175,7 @@ function Win({
           </span>
         )}
       </h3>
-      <Hand view={view} seat={win.seat} winTile={win.winTile} glow={glow} />
+      <Hand view={view} seat={win.seat} win={win} glow={glow} />
       {result && (
         // 行が出る前から高さを取っておき、下の段が動かないようにする
         <p className="flex min-h-5 flex-wrap gap-x-3 text-sm">
@@ -277,7 +292,7 @@ export function RoundResult({
                 </span>
                 　テンパイ
               </p>
-              <Hand view={view} seat={seat} winTile={null} />
+              <Hand view={view} seat={seat} win={null} />
             </div>
           ))}
         </section>
