@@ -458,15 +458,21 @@ function extractFlowers(
   }
 }
 
-/** 花牌を抜き、リーチ中ならポッチを判定する。 */
+/**
+ * 花牌を抜き、リーチ中ならポッチを判定する。
+ * 逆ポッチは、待ちに白が含まれていれば発動せず、普通の白としてツモ和了できる。
+ */
 function afterDraw(state: RoundState, seat: Seat, events: RoundEvent[]): void {
   extractFlowers(state, seat, events);
 
-  const variant = tileOf(state.drawn!).variant;
-  if (
-    state.riichi[seat] &&
-    (variant === "pocchi" || variant === "reversePocchi")
-  ) {
+  const drawn = state.drawn!;
+  const variant = tileOf(drawn).variant;
+  if (!state.riichi[seat]) return;
+  if (variant === "reversePocchi") {
+    const concealed = state.hands[seat].filter((id) => id !== drawn);
+    if (waitingKinds(concealed, state.melds[seat]).includes("5z")) return;
+  }
+  if (variant === "pocchi" || variant === "reversePocchi") {
     settlePocchi(state, seat, events);
   }
 }

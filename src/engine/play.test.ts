@@ -949,6 +949,47 @@ describe("ポッチと逆ポッチ", () => {
     expect(state.phase).toBe("ended");
   });
 
+  describe("白待ち", () => {
+    /** 白単騎 */
+    const whiteTanki: DeckSpec["hands"] = ["123456789p234s5z", JUNK_A, JUNK_B];
+    /** 1索と白のシャンポン。白が足りるよう、他家は白を持たない */
+    const whiteShanpon: DeckSpec["hands"] = [
+      "123456789p11s55z",
+      "19m258p36s4s123z67z",
+      "19m369p25s7s234z67z",
+    ];
+
+    it("逆ポッチを引いても発動せず、普通の白としてツモ和了できる", () => {
+      let state = start({ hands: whiteTanki, live: "4z9p9px5z" });
+      state = giri(riichi(state, "4z"), 2);
+      expect(state.outcome).toBeNull();
+      expect(state.phase).toBe("awaitTurnAction");
+      expect(types(state, 0)).toContain("tsumo");
+
+      const drawn = state.drawn!;
+      expect(tileOf(drawn).variant).toBe("reversePocchi");
+      state = act(state, { type: "tsumo", seat: 0 });
+      expect(state.outcome?.wins[0]).toMatchObject({
+        seat: 0,
+        kind: "tsumo",
+        winTile: drawn,
+      });
+    });
+
+    it("白と別の牌のシャンポンでも、逆ポッチは発動しない", () => {
+      let state = start({ hands: whiteShanpon, live: "4z9p9px5z" });
+      state = giri(riichi(state, "4z"), 2);
+      expect(state.outcome).toBeNull();
+      expect(types(state, 0)).toContain("tsumo");
+    });
+
+    it("ポッチは白待ちでも発動する", () => {
+      let state = start({ hands: whiteShanpon, live: "4z9p9po5z" });
+      state = giri(riichi(state, "4z"), 2);
+      expect(state.outcome?.wins[0]).toMatchObject({ seat: 0, kind: "pocchi" });
+    });
+  });
+
   it("リーチしていなければ普通の白", () => {
     let state = start({ hands, live: "4z9p9po5z" });
     state = giri(state, 3);
