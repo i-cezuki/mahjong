@@ -6,6 +6,8 @@
 export const BASE_MS = 5_000;
 /** 局ごとの持ち時間（長考）。手番と応答で共有し、局が変わると戻る */
 export const BANK_MS = 20_000;
+/** 長考ボタンで足す時間。1局に1回、押した判断の間だけ使え、持ち時間より先に減る */
+export const THINK_MS = 30_000;
 /** サイコロの出目の指定 */
 export const DICE_CHOICE_MS = 20_000;
 /** 局の結果の表示 */

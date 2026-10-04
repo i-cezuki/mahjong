@@ -87,6 +87,7 @@ const VIEW_KEYS = [
   "actions",
   "auto",
   "bank",
+  "canThink",
   "chips",
   "confirmed",
   "deadline",
@@ -117,6 +118,7 @@ const VIEW_KEYS = [
   "seat",
   "serverNow",
   "startedAt",
+  "thinking",
   "turn",
   "wallCount",
 ];
@@ -549,6 +551,8 @@ describe("持ち時間の項目", () => {
         deadline: 9_000,
         bank: [11_111, 22_222, 33_333],
         auto: [false, true, false],
+        thinkUsed: [false, false, false],
+        thinking: [false, false, false],
       },
     };
     const view = buildView(table, 1);
@@ -584,6 +588,8 @@ describe("持ち時間の項目", () => {
       deadline: 2,
       bank: [3, 4, 5] as [number, number, number],
       auto: [false, false, false] as [boolean, boolean, boolean],
+      thinkUsed: [true, false, false] as [boolean, boolean, boolean],
+      thinking: [false, false, false] as [boolean, boolean, boolean],
     };
     let table: TableState = { ...start, game: { ...start.game, round }, clock };
     const next = () => seedOf(2);

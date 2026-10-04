@@ -103,8 +103,21 @@ function Table({
             ? view.bank
             : null
         }
+        thinking={view.thinking}
         serverTime={serverTime}
       />
+    ) : null;
+  // 1局に1回、押した判断の残りに30秒を足す
+  const thinkButton =
+    clock && view.canThink ? (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => send({ type: "think", seat: view.seat })}
+        className="rounded border border-sky-300/80 px-2 py-0.5 text-sm font-semibold text-sky-200 disabled:opacity-50"
+      >
+        長考 +30秒
+      </button>
     ) : null;
 
   const [pinnedTile, setPinnedTile] = useState<Pinned<TileId> | null>(null);
@@ -323,6 +336,7 @@ function Table({
         )}
         {waiting && <p className="opacity-50">ほかの人を待っています</p>}
         {!view.outcome && clock}
+        {thinkButton}
         <ActionBar
           menu={menu}
           hand={view.hand}

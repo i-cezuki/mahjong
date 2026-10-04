@@ -20,6 +20,8 @@ describe("withClockFields（古い画面データの補完）", () => {
     delete legacy.serverNow;
     delete legacy.bank;
     delete legacy.auto;
+    delete legacy.canThink;
+    delete legacy.thinking;
     expect(withClockFields(legacy as PlayerView)).toEqual({
       ...view,
       deadline: null,
@@ -28,6 +30,8 @@ describe("withClockFields（古い画面データの補完）", () => {
       serverNow: 0,
       bank: 0,
       auto: [false, false, false],
+      canThink: false,
+      thinking: false,
     });
   });
 
@@ -72,8 +76,9 @@ describe("estimateOffset（サーバーの時計との差）", () => {
 });
 
 describe("clockDisplay（残り時間の表示）", () => {
-  const base = (seconds: number) => ({ seconds, reserve: false });
-  const reserve = (seconds: number) => ({ seconds, reserve: true });
+  const base = (seconds: number) => ({ seconds, stage: "base" });
+  const think = (seconds: number) => ({ seconds, stage: "think" });
+  const reserve = (seconds: number) => ({ seconds, stage: "reserve" });
 
   it("基本の時間が残っている間は 5→1 と数える", () => {
     expect(clockDisplay(25_000, 20_000)).toEqual(base(5));
@@ -97,6 +102,13 @@ describe("clockDisplay（残り時間の表示）", () => {
     expect(clockDisplay(14_100, null)).toEqual(base(15));
     expect(clockDisplay(-800, null)).toEqual(base(0));
     expect(clockDisplay(-800, 20_000)).toEqual(reserve(0));
+  });
+
+  it("長考ボタンを押したら、30秒を 30→ と数え、切れたら持ち時間を数える", () => {
+    expect(clockDisplay(50_000, 20_000, true)).toEqual(think(30));
+    expect(clockDisplay(20_001, 20_000, true)).toEqual(think(1));
+    expect(clockDisplay(20_000, 20_000, true)).toEqual(reserve(20));
+    expect(clockDisplay(30_000, 0, true)).toEqual(think(30));
   });
 
   it("残り時間は期限とサーバー時刻の差だけで決まり、開き直しても戻らない", () => {

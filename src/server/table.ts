@@ -37,6 +37,10 @@ export interface Clock {
   bank: PerSeat<number>;
   /** 即ツモ切り中。時間切れでなり、本人の操作で解除する */
   auto: PerSeat<boolean>;
+  /** この局で長考ボタンを押した。局が変わると戻る */
+  thinkUsed: PerSeat<boolean>;
+  /** いまの判断で長考ボタンの30秒を使っている。判断が終わると戻る */
+  thinking: PerSeat<boolean>;
 }
 
 /**
@@ -58,8 +62,11 @@ export type DiceResult = Omit<Extract<RoundEvent, { type: "dice" }>, "type">;
 /** 対局を進める操作。confirm は局の結果の確認。 */
 export type PlayAction = Action | { type: "confirm"; seat: Seat };
 
-/** クライアントが送れる操作。resume は即ツモ切りの解除（clock.ts が扱う）。 */
-export type TableAction = PlayAction | { type: "resume"; seat: Seat };
+/**
+ * クライアントが送れる操作。resume は即ツモ切りの解除、think は長考ボタン（どちらも clock.ts が扱う）。
+ */
+export type TableAction =
+  PlayAction | { type: "resume"; seat: Seat } | { type: "think"; seat: Seat };
 
 /** 牌譜に残すイベント。seed は直後に始まる局の乱数の種。 */
 export type TableEvent = GameEvent | { type: "seed"; seed: string };
@@ -124,6 +131,26 @@ export interface PlayerView {
   bank: number;
   /** 即ツモ切り中の人 */
   auto: PerSeat<boolean>;
+  /** いま長考ボタンを押せる */
+  canThink: boolean;
+  /** いまの判断で長考ボタンの30秒を使っている */
+  thinking: boolean;
+}
+
+/**
+ * 長考ボタンを押せるか。手番か応答で待たれていて、自動でなく、この局でまだ押していない。
+ * clock のない状態（フェーズ8より前に始まった対局）では押せない。
+ */
+export function canThink(table: TableState, seat: Seat): boolean {
+  const { phase } = table.game.round;
+  const clock = table.clock;
+  return (
+    (phase === "awaitTurnAction" || phase === "awaitResponses") &&
+    clock !== undefined &&
+    clock.deadlines?.[seat] != null &&
+    !clock.auto[seat] &&
+    !clock.thinkUsed?.[seat]
+  );
 }
 
 /** 席0を起家として対局を始める。席順は呼び出す側が決める。 */
@@ -288,6 +315,8 @@ export function buildView(table: TableState, seat: Seat): PlayerView {
     serverNow: table.clock?.savedAt ?? 0,
     bank: table.clock?.bank[seat] ?? 0,
     auto: table.clock?.auto ?? [false, false, false],
+    canThink: canThink(table, seat),
+    thinking: table.clock?.thinking?.[seat] ?? false,
   };
   return structuredClone(view);
 }
@@ -334,6 +363,7 @@ export function parseAction(input: unknown, seat: Seat): TableAction | null {
     case "pass":
     case "confirm":
     case "resume":
+    case "think":
       return { type: raw.type, seat };
     case "discard":
     case "kakan":

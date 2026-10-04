@@ -21,6 +21,9 @@ export function withClockFields(view: PlayerView): PlayerView {
     serverNow: raw.serverNow ?? 0,
     bank: raw.bank ?? 0,
     auto: raw.auto ?? [false, false, false],
+    // 長考ボタンより前に保存された画面データにはない
+    canThink: raw.canThink ?? false,
+    thinking: raw.thinking ?? false,
     // オープンリーチより前に保存された画面データにはない
     openHands: raw.openHands ?? [null, null, null],
   };
@@ -44,26 +47,32 @@ export function estimateOffset(
 export interface ClockDisplay {
   /** 表示する秒数 */
   seconds: number;
-  /** 基本の時間を使い切り、持ち時間（長考）を使っている */
-  reserve: boolean;
+  /**
+   * いま減っている時間。base は基本の時間、think は長考ボタンの30秒、
+   * reserve は基本の時間（または30秒）を使い切ったあとの持ち時間（長考）
+   */
+  stage: "base" | "think" | "reserve";
 }
 
 /**
  * 残り時間の表示。期限はサーバーの時刻なので、表示がずれても進行は変わらない。
  * @param bankMs 手番と応答のときの自分の持ち時間。サイコロの指定と局の結果は null。
  *   基本の時間が残っている間はその秒数（5→1）、切れたら持ち時間の秒数（長考 20→）を出す。
+ * @param thinking 長考ボタンを押した判断。基本の時間の代わりに30秒（30→1）を数える。
  */
 export function clockDisplay(
   remainingMs: number,
   bankMs: number | null,
+  thinking = false,
 ): ClockDisplay {
   const seconds = (ms: number) => Math.max(0, Math.ceil(ms / 1000));
+  const first = thinking ? "think" : "base";
   if (bankMs === null || bankMs === 0) {
-    return { seconds: seconds(remainingMs), reserve: false };
+    return { seconds: seconds(remainingMs), stage: first };
   }
   return remainingMs > bankMs
-    ? { seconds: seconds(remainingMs - bankMs), reserve: false }
-    : { seconds: seconds(remainingMs), reserve: true };
+    ? { seconds: seconds(remainingMs - bankMs), stage: first }
+    : { seconds: seconds(remainingMs), stage: "reserve" };
 }
 
 /** 期限を過ぎてから時間切れを申告するまでの間。3人が同時に送らないよう席でずらす。 */

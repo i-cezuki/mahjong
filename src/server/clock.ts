@@ -7,8 +7,9 @@ import {
   DICE_STEP_MS,
   FIRST_TURN_GRACE_MS,
   RESULT_MS,
+  THINK_MS,
 } from "@/lib/timing";
-import { actionsFor, applyTableAction } from "./table";
+import { actionsFor, applyTableAction, canThink } from "./table";
 import type {
   Clock,
   PlayAction,
@@ -24,6 +25,8 @@ import type {
  * 手番の操作と他家の打牌への応答は、判断のたびに「基本5秒＋その人の残り持ち時間」。
  * 基本の5秒を超えた分だけ持ち時間（長考）が減り、局が変わると3人とも20秒に戻る。
  * 応答できる人が2人いれば、それぞれに期限を付け、2人の判断がそろうか時間切れになってから解決する。
+ * 長考ボタンは1局に1回。押すと、その判断の残りが「30秒＋その時点の持ち時間」になる（残りの基本の時間は消える）。
+ * 30秒から先に減り、余りはその判断で消える。
  */
 
 export interface ClockContext {
@@ -48,6 +51,8 @@ const fullBank = (): PerSeat<number> => [BANK_MS, BANK_MS, BANK_MS];
 
 const noSeats = (): PerSeat<number | null> => [null, null, null];
 
+const noFlags = (): PerSeat<boolean> => [false, false, false];
+
 /** 持ち時間が満ちていて、誰も自動でなく、まだ何も待っていない時計。 */
 const newClock = (now: number): Clock => ({
   savedAt: now,
@@ -55,7 +60,9 @@ const newClock = (now: number): Clock => ({
   deadlines: noSeats(),
   deadline: null,
   bank: fullBank(),
-  auto: [false, false, false],
+  auto: noFlags(),
+  thinkUsed: noFlags(),
+  thinking: noFlags(),
 });
 
 function waitedSeats(table: TableState): Seat[] {
@@ -97,6 +104,9 @@ function timed(table: TableState, now: number): TimedTable {
       deadlines,
       bank: [...clock.bank],
       auto: [...clock.auto],
+      // 長考ボタンより前に保存された対局にはない
+      thinkUsed: legacy.thinkUsed ? [...legacy.thinkUsed] : noFlags(),
+      thinking: legacy.thinking ? [...legacy.thinking] : noFlags(),
     },
   };
 }
@@ -203,7 +213,10 @@ function applyOne(
   const newRound = step.events.some((event) => event.type === "roundStart");
   return {
     ...step.table,
-    clock: { ...table.clock, ...(newRound && { bank: fullBank() }) },
+    clock: {
+      ...table.clock,
+      ...(newRound && { bank: fullBank(), thinkUsed: noFlags() }),
+    },
   };
 }
 
@@ -236,6 +249,7 @@ function settle(
   if (stopped()) {
     clock.startedAt = null;
     clock.deadlines = noSeats();
+    clock.thinking = noFlags();
   } else if (isFresh || clock.deadline === null) {
     const diceThrows = events.reduce(
       (total, event) =>
@@ -252,12 +266,16 @@ function settle(
       startedAt,
       diceThrows,
     );
+    clock.thinking = noFlags();
   } else {
     // 同じ待ちが続いている。もう判断した人の期限だけを外し、残りの人の期限は変えない
     const waited = waitedSeats(table);
     clock.deadlines = clock.deadlines.map((d, s) =>
       waited.includes(s as Seat) ? d : null,
     ) as PerSeat<number | null>;
+    clock.thinking = clock.thinking.map(
+      (t, s) => t && waited.includes(s as Seat),
+    ) as PerSeat<boolean>;
   }
   clock.deadline = earliest(clock.deadlines);
   return { table: { ...table, clock }, events };
@@ -295,6 +313,20 @@ export function applyTimed(
   if (action.type === "resume") {
     if (!table.clock.auto[seat]) throw new IllegalActionError("notAllowed");
     table.clock.auto[seat] = false;
+    return settle(table, [], ctx, false, false);
+  }
+
+  if (action.type === "think") {
+    if (!canThink(table, seat)) throw new IllegalActionError("notAllowed");
+    const { clock } = table;
+    // 押した時点の持ち時間の残り。基本の時間が残っていれば、持ち時間はまだ減っていない
+    clock.bank[seat] = Math.min(
+      clock.bank[seat],
+      Math.max(0, clock.deadlines[seat]! - ctx.now),
+    );
+    clock.deadlines[seat] = ctx.now + THINK_MS + clock.bank[seat];
+    clock.thinkUsed[seat] = true;
+    clock.thinking[seat] = true;
     return settle(table, [], ctx, false, false);
   }
 

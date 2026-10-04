@@ -89,6 +89,8 @@ describe("startClock（対局の開始）", () => {
       deadline: T0 + 35_000,
       bank: [20_000, 20_000, 20_000],
       auto: [false, false, false],
+      thinkUsed: [false, false, false],
+      thinking: [false, false, false],
     });
   });
 });
@@ -545,6 +547,139 @@ describe("持ち時間（長考）の消費", () => {
     if (table.game.phase === "playing") {
       expect(table.clock.bank).toEqual([20_000, 20_000, 20_000]);
     }
+  });
+});
+
+describe("長考ボタン（think）", () => {
+  const think = (seat: Seat) => ({ type: "think" as const, seat });
+
+  /** 席1の最初の手番。席0は1秒で切る。 */
+  function turnOf1(): { table: TimedTable; at: number } {
+    const table = advance(start(), T0 + 1_000);
+    return { table, at: table.clock.startedAt! };
+  }
+
+  it("押すと、期限が今＋30秒＋持ち時間になる（残りの基本の時間は消える）", () => {
+    const { table, at } = turnOf1();
+    const next = applyTimed(table, think(1), ctx(at + 2_000)).table;
+    expect(next.clock.deadlines[1]).toBe(at + 2_000 + 30_000 + 20_000);
+    expect(next.clock.deadline).toBe(at + 52_000);
+    expect(next.clock.thinkUsed).toEqual([false, true, false]);
+    expect(next.clock.thinking).toEqual([false, true, false]);
+    expect(next.game).toBe(table.game);
+  });
+
+  it("持ち時間を使っている途中で押すと、その時点の残りに30秒を足す", () => {
+    const { table, at } = turnOf1();
+    // 12秒経過で持ち時間は残り13秒
+    const next = applyTimed(table, think(1), ctx(at + 12_000)).table;
+    expect(next.clock.bank[1]).toBe(13_000);
+    expect(next.clock.deadlines[1]).toBe(at + 12_000 + 30_000 + 13_000);
+  });
+
+  it("30秒のうちに切れば持ち時間は減らず、余りは消える", () => {
+    const { table, at } = turnOf1();
+    const thought = applyTimed(table, think(1), ctx(at + 1_000)).table;
+    const next = applyTimed(
+      thought,
+      discardsOf(thought, 1)[0]!,
+      ctx(at + 1_000 + 29_000),
+    ).table;
+    expect(next.clock.bank[1]).toBe(20_000);
+    expect(next.clock.thinking).toEqual([false, false, false]);
+    expect(next.clock.thinkUsed).toEqual([false, true, false]);
+  });
+
+  it("30秒を超えた分は持ち時間から減る", () => {
+    const { table, at } = turnOf1();
+    const thought = applyTimed(table, think(1), ctx(at + 1_000)).table;
+    const next = applyTimed(
+      thought,
+      discardsOf(thought, 1)[0]!,
+      ctx(at + 1_000 + 37_000),
+    ).table;
+    expect(next.clock.bank[1]).toBe(13_000);
+  });
+
+  it("1局に1回だけ。局が変わると、また押せる", () => {
+    const { table, at } = turnOf1();
+    let next = applyTimed(table, think(1), ctx(at + 1_000)).table;
+    expect(() => applyTimed(next, think(1), ctx(at + 2_000))).toThrow(
+      IllegalActionError,
+    );
+    let now = at + 2_000;
+    const round = next.game.roundIndex;
+    const honba = next.game.honba;
+    while (
+      next.game.phase === "playing" &&
+      next.game.roundIndex === round &&
+      next.game.honba === honba
+    ) {
+      next = advance(next, (now += 1_000));
+    }
+    if (next.game.phase === "playing") {
+      expect(next.clock.thinkUsed).toEqual([false, false, false]);
+    }
+  });
+
+  it("応答待ちでも押せて、もう1人の期限は変わらない", () => {
+    const doubleRon = withRound({
+      hands: [
+        "123456789p 234s 8s",
+        "123s 567s 111z 666z 8s",
+        "456p 789p 777z 222z 8s",
+      ],
+      live: "3z",
+    });
+    const action = discardsOf(doubleRon, 0).find(
+      (a) => tileOf(a.tile).kind === "8s",
+    )!;
+    const waiting = applyTimed(doubleRon, action, ctx(T0 + 1_000)).table;
+    const next = applyTimed(waiting, think(2), ctx(T0 + 2_000)).table;
+    expect(next.clock.deadlines).toEqual([
+      null,
+      T0 + 26_000,
+      T0 + 2_000 + 50_000,
+    ]);
+    expect(next.clock.deadline).toBe(T0 + 26_000);
+  });
+
+  it("待たれていない人、自動の人、サイコロの指定では押せない", () => {
+    const { table, at } = turnOf1();
+    expect(() => applyTimed(table, think(0), ctx(at + 1_000))).toThrow(
+      IllegalActionError,
+    );
+    const auto: TimedTable = {
+      ...table,
+      clock: { ...table.clock, auto: [false, true, true] },
+    };
+    expect(() => applyTimed(auto, think(1), ctx(at + 1_000))).toThrow(
+      IllegalActionError,
+    );
+    const dice = applyTimed(
+      tenhou(),
+      { type: "tsumo", seat: 0 },
+      ctx(T0 + 1_000),
+    ).table;
+    expect(dice.game.round.phase).toBe("diceChance");
+    const chooser = SEATS.find((s) => dice.clock.deadlines[s] !== null)!;
+    expect(() => applyTimed(dice, think(chooser), ctx(T0 + 2_000))).toThrow(
+      IllegalActionError,
+    );
+  });
+
+  it("画面データに、押せるかと30秒を使っているかを出す", () => {
+    const { table, at } = turnOf1();
+    expect(buildView(table, 1)).toMatchObject({
+      canThink: true,
+      thinking: false,
+    });
+    expect(buildView(table, 0)).toMatchObject({ canThink: false });
+    const next = applyTimed(table, think(1), ctx(at + 1_000)).table;
+    expect(buildView(next, 1)).toMatchObject({
+      canThink: false,
+      thinking: true,
+    });
   });
 });
 

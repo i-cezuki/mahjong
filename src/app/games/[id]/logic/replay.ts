@@ -330,6 +330,8 @@ export function frameView(frame: ReplayFrame, seat: Seat): PlayerView {
     serverNow: 0,
     bank: 0,
     auto: [false, false, false],
+    canThink: false,
+    thinking: false,
   };
 }
 
