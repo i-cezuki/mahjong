@@ -261,6 +261,7 @@ export type Database = {
           approved: boolean;
           created_at: string;
           display_name: string | null;
+          double_tap_tsumogiri: boolean;
           id: string;
           is_admin: boolean;
           ron_phrase: string | null;
@@ -269,6 +270,7 @@ export type Database = {
           approved?: boolean;
           created_at?: string;
           display_name?: string | null;
+          double_tap_tsumogiri?: boolean;
           id: string;
           is_admin?: boolean;
           ron_phrase?: string | null;
@@ -277,6 +279,7 @@ export type Database = {
           approved?: boolean;
           created_at?: string;
           display_name?: string | null;
+          double_tap_tsumogiri?: boolean;
           id?: string;
           is_admin?: boolean;
           ron_phrase?: string | null;

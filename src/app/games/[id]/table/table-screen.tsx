@@ -38,6 +38,8 @@ export interface TableScreenProps {
   names: string[];
   /** 席ごとのロンの決めゼリフ。設定なしは null */
   ronPhrases: readonly (string | null)[];
+  /** ダブルタップでツモ切りするか。本人が設定画面で決める。省くと有効 */
+  doubleTapTsumogiri?: boolean;
   roomCode: string | null;
   busy: boolean;
   error: string | null;
@@ -66,6 +68,7 @@ function Table({
   version,
   names,
   ronPhrases,
+  doubleTapTsumogiri = true,
   roomCode,
   busy,
   error,
@@ -165,9 +168,10 @@ function Table({
   // 手牌やボタン以外の同じ場所を素早く2回タップしたら、ツモ牌をそのまま切る。
   // 卓の外の余白でも効くように、画面全体のタップを見る
   const canTsumogiri = !busy && !mine.staging && mode === null && !view.outcome;
-  const tsumogiri = canTsumogiri
-    ? tsumogiriAction(view.actions, view.drawn)
-    : null;
+  const tsumogiri =
+    doubleTapTsumogiri && canTsumogiri
+      ? tsumogiriAction(view.actions, view.drawn)
+      : null;
   const lastTap = useRef<Tap | null>(null);
   useEffect(() => {
     const onClick = (event: MouseEvent) => {

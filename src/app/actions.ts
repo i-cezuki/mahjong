@@ -91,6 +91,30 @@ export async function saveRonPhrase(
   return { error: null, saved: true, value: parsed.phrase ?? "" };
 }
 
+export interface DoubleTapTsumogiriState {
+  error: string | null;
+  enabled: boolean;
+}
+
+/** ダブルタップでツモ切りするかを保存する。 */
+export async function saveDoubleTapTsumogiri(
+  previous: DoubleTapTsumogiriState,
+  enabled: boolean,
+): Promise<DoubleTapTsumogiriState> {
+  const viewer = await requireApproved();
+  const { error } = await createAdminClient()
+    .from("profiles")
+    .update({ double_tap_tsumogiri: enabled })
+    .eq("id", viewer.id);
+  if (error) {
+    return {
+      error: "保存できませんでした。もう一度お試しください",
+      enabled: previous.enabled,
+    };
+  }
+  return { error: null, enabled };
+}
+
 /** 管理者がユーザーを承認する。 */
 export async function approveUser(formData: FormData): Promise<void> {
   await requireAdmin();

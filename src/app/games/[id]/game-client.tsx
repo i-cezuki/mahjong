@@ -25,6 +25,7 @@ export function GameClient({
   roomCode,
   names,
   ronPhrases,
+  doubleTapTsumogiri,
   initialVersion,
   initialView,
   renderedAt,
@@ -34,6 +35,8 @@ export function GameClient({
   names: string[];
   /** 席ごとのロンの決めゼリフ。設定なしは null */
   ronPhrases: (string | null)[];
+  /** 自分の設定。ダブルタップでツモ切りするか */
+  doubleTapTsumogiri: boolean;
   initialVersion: number;
   initialView: PlayerView;
   /** サーバーがこのページを描いた時刻。サーバーの時計との差の見積もりに使う */
@@ -139,6 +142,7 @@ export function GameClient({
       version={ahead ? version + 0.5 : version}
       names={names}
       ronPhrases={ronPhrases}
+      doubleTapTsumogiri={doubleTapTsumogiri}
       roomCode={roomCode}
       busy={busy}
       error={error}

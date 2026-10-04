@@ -46,7 +46,7 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
   const [profiles, room] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, display_name, ron_phrase")
+      .select("id, display_name, ron_phrase, double_tap_tsumogiri")
       .in("id", game.data.player_ids),
     supabase
       .from("rooms")
@@ -68,6 +68,9 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
       ronPhrases={game.data.player_ids.map(
         (pid) => profileOf.get(pid)?.ron_phrase ?? null,
       )}
+      doubleTapTsumogiri={
+        profileOf.get(viewer.id)?.double_tap_tsumogiri ?? true
+      }
       initialVersion={row.data.version}
       initialView={row.data.view as unknown as PlayerView}
       renderedAt={serverNow()}
