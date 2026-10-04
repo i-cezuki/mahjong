@@ -25,6 +25,7 @@ import { TedashiBubble } from "./tedashi-bubble";
 import { useAutoSettings } from "./use-auto-settings";
 import { useCalls, useTedashi } from "./use-calls";
 import { useDicePlayback } from "./use-dice-playback";
+import { useSounds } from "./use-sounds";
 import { useFlowerReveal } from "./use-flower-reveal";
 import { WallPanel } from "./wall";
 
@@ -87,6 +88,7 @@ function Table({
   const { calls, resultHeld } = useCalls(view, version);
   // 相手が手牌から切ったときの「手出し」
   const tedashi = useTedashi(view, version);
+  useSounds(view, version);
 
   /** 自分が即ツモ切り中 */
   const myAuto = view.auto[view.seat];
